@@ -40,7 +40,9 @@ import applozic.com.audiovideo.R;
 
 import static com.applozic.mobicomkit.api.notification.VideoCallNotificationHelper.CALL_MISSED;
 
-
+/**
+ * This activity is for the incoming calls screen, for both audio and video calls.
+ */
 public class CallActivity extends Activity {
 
     private static final String TAG = CallActivity.class.getName();

@@ -17,10 +17,14 @@ import android.widget.TextView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.twilio.video.CameraCapturer;
+import com.twilio.video.LocalVideoTrack;
 import com.twilio.video.VideoView;
 
 import applozic.com.audiovideo.R;
 
+/**
+ * This activity extends {@link AudioCallActivityV2} and adds additional functionality for video calls.
+ */
 public class VideoActivity extends AudioCallActivityV2 {
     private static final String TAG = VideoActivity.class.getName();
 
@@ -33,18 +37,19 @@ public class VideoActivity extends AudioCallActivityV2 {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        init();
+
         setContentView(R.layout.activity_conversation);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-        init();
 
         contactName = (TextView) findViewById(R.id.contact_name);
         //profileImage = (ImageView) findViewById(R.id.applozic_audio_profile_image);
-        txtCount = (TextView) findViewById(R.id.applozic_audio_timer);
+        textCount = (TextView) findViewById(R.id.applozic_audio_timer);
 
-        contactName.setText(contactToCall.getDisplayName());
-        pauseVideo = true;
+        contactName.setText(roomApplozicManager.getContactCalled().getDisplayName());
+        //pauseVideo = true;
 
         primaryVideoView = (VideoView) findViewById(R.id.primary_video_view);
         thumbnailVideoView = (VideoView) findViewById(R.id.thumbnail_video_view);
@@ -87,7 +92,7 @@ public class VideoActivity extends AudioCallActivityV2 {
         if (!checkPermissionForCameraAndMicrophone()) {
             requestPermissionForCameraAndMicrophone();
         } else {
-            createAudioAndVideoTracks();
+            setupAudioAndVideoTracks();
             intializeUI();
             initializeApplozic();
         }
@@ -173,6 +178,7 @@ public class VideoActivity extends AudioCallActivityV2 {
             @Override
             public void onClick(View v) {
                 try {
+                    CameraCapturer cameraCapturer = roomApplozicManager.getCameraCapturer();
                     if (cameraCapturer != null) {
                         CameraCapturer.CameraSource cameraSource = cameraCapturer.getCameraSource();
                         cameraCapturer.switchCamera();
@@ -193,6 +199,7 @@ public class VideoActivity extends AudioCallActivityV2 {
         return new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                LocalVideoTrack localVideoTrack = roomApplozicManager.getLocalVideoTrack();
                 /*
                  * Enable/disable the local video track
                  */

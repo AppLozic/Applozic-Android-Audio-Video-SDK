@@ -1,0 +1,630 @@
+package com.applozic.audiovideo.core;
+
+import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.os.Build;
+import android.text.TextUtils;
+import android.util.Log;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+import com.applozic.audiovideo.listener.PostRoomEventsListener;
+import com.applozic.audiovideo.listener.PostRoomParticipantEventsListener;
+import com.applozic.audiovideo.model.OneToOneCall;
+import com.applozic.mobicomkit.api.MobiComKitConstants;
+import com.applozic.mobicomkit.api.notification.VideoCallNotificationHelper;
+import com.applozic.mobicomkit.contact.AppContactService;
+import com.applozic.mobicommons.commons.core.utils.Utils;
+import com.applozic.mobicommons.people.contact.Contact;
+import com.twilio.video.CameraCapturer;
+import com.twilio.video.ConnectOptions;
+import com.twilio.video.LocalAudioTrack;
+import com.twilio.video.LocalParticipant;
+import com.twilio.video.LocalVideoTrack;
+import com.twilio.video.RemoteAudioTrack;
+import com.twilio.video.RemoteAudioTrackPublication;
+import com.twilio.video.RemoteDataTrack;
+import com.twilio.video.RemoteDataTrackPublication;
+import com.twilio.video.RemoteParticipant;
+import com.twilio.video.RemoteVideoTrack;
+import com.twilio.video.RemoteVideoTrackPublication;
+import com.twilio.video.Room;
+import com.twilio.video.TwilioException;
+import com.twilio.video.Video;
+import com.twilio.video.VideoTrack;
+
+import java.util.Collections;
+
+import applozic.com.audiovideo.R;
+
+import static com.twilio.video.Room.State.CONNECTED;
+import static com.twilio.video.Room.State.DISCONNECTED;
+
+public class RoomApplozicManager {
+    public static final String TAG = "RoomManager";
+    public static final long INCOMING_CALL_TIMEOUT = 30 * 1000L;
+    private static final String LOCAL_VIDEO_TRACK_NAME = "camera";
+    static final String CONNECTIVITY_CHANGE = "android.net.conn.CONNECTIVITY_CHANGE";
+
+    Context context;
+    protected String accessToken;
+    public final LocalBroadcastManager localBroadcastManager = LocalBroadcastManager.getInstance(context);
+    private int previousAudioMode;
+    private boolean previousMicrophoneMute;
+    private boolean audioCallInForeground; //the call (audio) is in foreground
+    private PostRoomEventsListener postRoomEventsListener;
+    private PostRoomParticipantEventsListener postRoomParticipantEventsListener;
+
+    protected Room room;
+    protected LocalParticipant localParticipant;
+    protected RemoteParticipant remoteParticipant;
+    protected VideoTrack remoteVideoTrack;
+    protected AudioTrack remoteAudioTrack;
+    protected LocalAudioTrack localAudioTrack;
+    protected LocalVideoTrack localVideoTrack;
+    protected AudioManager audioManager;
+    protected CameraCapturer cameraCapturer;
+
+    protected VideoCallNotificationHelper videoCallNotificationHelper;
+    protected OneToOneCall oneToOneCall;
+    protected BroadcastReceiver applozicBroadCastReceiver;
+    protected AppContactService contactService;
+
+    public RoomApplozicManager(Context context, boolean audioCallInForeground, String callId, String contactId, boolean videoCall, boolean received, PostRoomEventsListener postRoomEventsListener, PostRoomParticipantEventsListener postRoomParticipantEventsListener) {
+        this.context = context;
+        contactService = new AppContactService(context);
+        this.audioCallInForeground = audioCallInForeground;
+        oneToOneCall = new OneToOneCall(callId, videoCall, contactService.getContactById(contactId), received);
+        videoCallNotificationHelper = new VideoCallNotificationHelper(context, !videoCall);
+        try {
+            cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
+        } catch (IllegalStateException e) {
+            Utils.printLog(context, TAG, "Front camera not found on device, using back camera..");
+            cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.BACK_CAMERA);
+        }
+        audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        this.postRoomEventsListener = postRoomEventsListener;
+        this.postRoomParticipantEventsListener = postRoomParticipantEventsListener;
+        initializeApplozicNotificationBroadcast();
+    }
+
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public boolean isRoomStateConnected() {
+        return room.getState().equals(Room.State.CONNECTED);
+    }
+
+    public Room.State getRoomState() {
+        return room.getState();
+    }
+
+    public OneToOneCall getOneToOneCall() {
+        return oneToOneCall;
+    }
+
+    public void setVideoCall(boolean videoCall) {
+        oneToOneCall.setVideoCall(videoCall);
+    }
+
+    public boolean isVideoCall() {
+        return oneToOneCall.isVideoCall();
+    }
+
+    public String getCallId() {
+        return oneToOneCall.getCallId();
+    }
+
+    public void setCallId(String callId) {
+        oneToOneCall.setCallId(callId);
+    }
+
+    public Contact getContactCalled() {
+        return oneToOneCall.getContactCalled();
+    }
+
+    public LocalVideoTrack getLocalVideoTrack() {
+        return localVideoTrack;
+    }
+
+    public LocalAudioTrack getLocalAudioTrack() {
+        return localAudioTrack;
+    }
+
+    public LocalParticipant getLocalParticipant() {
+        return localParticipant;
+    }
+
+    public AudioTrack getRemoteAudioTrack() {
+        return remoteAudioTrack;
+    }
+
+    public VideoTrack getRemoteVideoTrack() {
+        return remoteVideoTrack;
+    }
+
+    public RemoteParticipant getRemoteParticipant() {
+        return remoteParticipant;
+    }
+
+    public CameraCapturer getCameraCapturer() {
+        return cameraCapturer;
+    }
+
+    public Room getRoom() {
+        return room;
+    }
+
+    public void changeRoomPostEventListeners(PostRoomEventsListener postRoomEventsListener, PostRoomParticipantEventsListener postRoomParticipantEventsListener) {
+        this.postRoomEventsListener = postRoomEventsListener;
+        this.postRoomParticipantEventsListener = postRoomParticipantEventsListener;
+    }
+
+    public void changeRoomCallState(boolean audioCallInForeground, PostRoomEventsListener postRoomEventsListener, PostRoomParticipantEventsListener postRoomParticipantEventsListener) {
+        this.audioCallInForeground = audioCallInForeground;
+        changeRoomPostEventListeners(postRoomEventsListener, postRoomParticipantEventsListener);
+    }
+
+    public void publishLocalVideoTrack() {
+        if (localParticipant != null && localVideoTrack != null) {
+            localParticipant.publishTrack(localVideoTrack);
+        }
+    }
+
+    public void unPublishLocalVideoTrack() {
+        /*
+         * Release the local video track before going in the background. This ensures that the
+         * camera can be used by other applications while this app is in the background.
+         */
+        if (localVideoTrack != null) {
+            /*
+             * If this local video track is being shared in a Room, remove from local
+             * participant before releasing the video track. Participants will be notified that
+             * the track has been removed.
+             */
+            if (localParticipant != null) {
+                localParticipant.unpublishTrack(localVideoTrack);
+            }
+
+            localVideoTrack.release();
+            localVideoTrack = null;
+        }
+    }
+
+    public void disconnectRoom() {
+        if (room != null && room.getState() != DISCONNECTED) {
+            room.disconnect();
+        }
+    }
+
+    public boolean isScheduleStopRequire() {
+        return (oneToOneCall.isInviteSent() && (oneToOneCall.getParticipantId() == null || !oneToOneCall.getParticipantId().equals(getContactCalled().getUserId())));
+    }
+
+    public long getTimeDuration() {
+        return oneToOneCall.isReceived() ? INCOMING_CALL_TIMEOUT : VideoCallNotificationHelper.MAX_NOTIFICATION_RING_DURATION + 10 * 1000;
+    }
+
+    public void sendApplozicMissedCallNotification() {
+        videoCallNotificationHelper.sendCallMissed(getContactCalled(), getCallId());
+        videoCallNotificationHelper.sendVideoCallMissedMessage(getContactCalled(), getCallId());
+    }
+
+    public void releaseAudioVideoTracks() {
+        /*
+         * Release the local audio and video tracks ensuring any memory allocated to audio
+         * or video is freed.
+         */
+        if (localAudioTrack != null) {
+            localAudioTrack.release();
+            localAudioTrack = null;
+        }
+        if (localVideoTrack != null) {
+            localVideoTrack.release();
+            localVideoTrack = null;
+        }
+    }
+
+    protected void sendInvite() {
+        if (isVideoCall()) {
+            setCallId(videoCallNotificationHelper.sendVideoCallRequest(getContactCalled()));
+        } else {
+            setCallId(videoCallNotificationHelper.sendAudioCallRequest(getContactCalled()));
+        }
+        connectToRoom(getCallId());
+    }
+
+    public void initiateCall() {
+        if (oneToOneCall.isReceived()) {
+            connectToRoom(getCallId());
+        } else {
+            sendInvite();
+            oneToOneCall.setInviteSent(true);
+        }
+
+    }
+
+    static IntentFilter BrodCastIntentFilters() {
+        IntentFilter intentFilter = new IntentFilter();
+
+        intentFilter.addAction(MobiComKitConstants.APPLOZIC_VIDEO_CALL_REJECTED);
+        intentFilter.addAction(VideoCallNotificationHelper.CALL_CANCELED);
+        intentFilter.addAction(VideoCallNotificationHelper.CALL_END);
+        intentFilter.addAction(MobiComKitConstants.APPLOZIC_VIDEO_DIALED);
+        intentFilter.addAction(VideoCallNotificationHelper.CALL_MISSED);
+        intentFilter.addAction(CONNECTIVITY_CHANGE);
+
+        return intentFilter;
+    }
+
+    public void registerApplozicBroadcastReceiver() {
+        LocalBroadcastManager.getInstance(context).registerReceiver(applozicBroadCastReceiver,
+                BrodCastIntentFilters());
+    }
+
+    public void unregisterApplozicBroadcastReceiver() {
+        LocalBroadcastManager.getInstance(context).unregisterReceiver(applozicBroadCastReceiver);
+    }
+
+    public void initializeApplozicNotificationBroadcast() {
+        applozicBroadCastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+
+                String incomingCallId = intent.getStringExtra(VideoCallNotificationHelper.CALL_ID);
+                boolean isNotificationForSameId = false;
+
+                Log.i(TAG, "incomingCallId: " + incomingCallId + ", intent.getAction(): " + intent.getAction());
+
+                if (CONNECTIVITY_CHANGE.equals(intent.getAction())) {
+                    if (!Utils.isInternetAvailable(context)) {
+                        Toast.makeText(context, R.string.no_network_connectivity, Toast.LENGTH_LONG);
+                        if (room != null && room.getState().equals(CONNECTED)) {
+                            room.disconnect();
+                        }
+                    }
+                    return;
+                }
+
+                if (!TextUtils.isEmpty(getCallId())) {
+                    isNotificationForSameId = (getCallId().equals(incomingCallId));
+                }
+                if ((MobiComKitConstants.APPLOZIC_VIDEO_CALL_REJECTED.equals(intent.getAction()) ||
+                        VideoCallNotificationHelper.CALL_CANCELED.equals(intent.getAction()) ||
+                        VideoCallNotificationHelper.CALL_MISSED.equals(intent.getAction()) ||
+                        VideoCallNotificationHelper.CALL_END.equals(intent.getAction()))
+                        && isNotificationForSameId) {
+
+                    Toast.makeText(context, R.string.participant_busy, Toast.LENGTH_LONG).show();
+                    if (room != null) {
+                        oneToOneCall.setInviteSent(false);
+                        room.disconnect();
+                    }
+                } else if (MobiComKitConstants.APPLOZIC_VIDEO_DIALED.equals(intent.getAction())) {
+
+                    String contactId = intent.getStringExtra("CONTACT_ID");
+
+                    if (!contactId.equals(getContactCalled().getUserId()) || (room != null && room.getState().equals(CONNECTED))) {
+                        Contact contact = contactService.getContactById(contactId);
+                        videoCallNotificationHelper.sendVideoCallReject(contact, incomingCallId);
+                        return;
+                    }
+                    setCallId(incomingCallId);
+                    connectToRoom(getCallId());
+                }
+            }
+        };
+    }
+
+    public LocalAudioTrack createAndReturnLocalAudioTrack() {
+        localAudioTrack = LocalAudioTrack.create(context, true);
+        return localAudioTrack;
+    }
+
+    public LocalVideoTrack createAndReturnLocalVideoTrack() {
+        if(cameraCapturer == null) {
+            try {
+                cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
+            } catch (IllegalStateException e) {
+                Utils.printLog(context, TAG, "Front camera not found on device, using back camera..");
+                cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.BACK_CAMERA);
+            }
+        }
+        localVideoTrack = LocalVideoTrack.create(context, true, cameraCapturer, LOCAL_VIDEO_TRACK_NAME);
+        return localVideoTrack;
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void addRemoteParticipant(RemoteParticipant remoteParticipant) {
+        videoCallNotificationHelper.sendVideoCallAnswer(getContactCalled(), getCallId());
+        oneToOneCall.setParticipantId(remoteParticipant.getIdentity());
+
+        if (remoteParticipant.getRemoteVideoTracks().size() > 0) {
+            RemoteVideoTrackPublication remoteVideoTrackPublication =
+                    remoteParticipant.getRemoteVideoTracks().get(0);
+
+            remoteParticipant.setListener(remoteParticipantListener());
+
+            if (remoteVideoTrackPublication.isTrackSubscribed()) {
+                postRoomParticipantEventsListener.afterParticipantConnectedToCall(remoteVideoTrackPublication);
+            }
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void removeRemoteParticipant(RemoteParticipant remoteParticipant) {
+        if (!remoteParticipant.getIdentity().equals(oneToOneCall.getParticipantId())) {
+            return;
+        }
+
+        if (!remoteParticipant.getRemoteVideoTracks().isEmpty()) {
+            RemoteVideoTrackPublication remoteVideoTrackPublication =
+                    remoteParticipant.getRemoteVideoTracks().get(0);
+
+            if (remoteVideoTrackPublication.isTrackSubscribed()) {
+                postRoomParticipantEventsListener.afterParticipantDisconnectedFromCall(remoteVideoTrackPublication);
+            }
+        }
+    }
+
+    private void requestAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build();
+            AudioFocusRequest focusRequest =
+                    new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                            .setAudioAttributes(playbackAttributes)
+                            .setAcceptsDelayedFocusGain(true)
+                            .setOnAudioFocusChangeListener(
+                                    new AudioManager.OnAudioFocusChangeListener() {
+                                        @Override
+                                        public void onAudioFocusChange(int i) {
+                                        }
+                                    })
+                            .build();
+            audioManager.requestAudioFocus(focusRequest);
+        } else {
+            audioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+        }
+    }
+
+    public void disconnectFromRoomBeforeConnection() {
+        if (oneToOneCall.isInviteSent() && oneToOneCall.getParticipantId() == null) {
+            oneToOneCall.setInviteSent(false);
+            videoCallNotificationHelper.sendCallMissed(getContactCalled(), getCallId());
+            videoCallNotificationHelper.sendVideoCallMissedMessage(getContactCalled(), getCallId());
+
+        }
+    }
+
+    protected void connectToRoom(String roomName) {
+        try {
+            configureAudio(true);
+            ConnectOptions.Builder connectOptionsBuilder = new ConnectOptions.Builder(accessToken)
+                    .roomName(roomName);
+
+            if (localAudioTrack != null) {
+                connectOptionsBuilder
+                        .audioTracks(Collections.singletonList(localAudioTrack));
+            }
+
+            if (localVideoTrack != null) {
+                connectOptionsBuilder.videoTracks(Collections.singletonList(localVideoTrack));
+            }
+            room = Video.connect(context, connectOptionsBuilder.build(), roomListener());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void configureAudio(boolean enable) {
+        if (enable) {
+            previousAudioMode = audioManager.getMode();
+            // Request audio focus before making any device switch.
+
+            requestAudioFocus();
+            /*
+             * Use MODE_IN_COMMUNICATION as the default audio mode. It is required
+             * to be in this mode when playout and/or recording starts for the best
+             * possible VoIP performance. Some devices have difficulties with
+             * speaker mode if this is not set.
+             */
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            /*
+             * Always disable microphone mute during a WebRTC call.
+             */
+            previousMicrophoneMute = audioManager.isMicrophoneMute();
+            audioManager.setMicrophoneMute(false);
+        } else {
+            audioManager.setMode(previousAudioMode);
+            audioManager.abandonAudioFocus(null);
+            audioManager.setMicrophoneMute(previousMicrophoneMute);
+        }
+    }
+
+    protected Room.Listener roomListener() {
+        return new Room.Listener() {
+            @Override
+            public void onConnected(@androidx.annotation.NonNull Room room) {
+                Log.d(TAG, "Connected to room.");
+                RoomApplozicManager.this.room = room;
+                localParticipant = room.getLocalParticipant();
+                for (RemoteParticipant participant : room.getRemoteParticipants()) {
+                    addRemoteParticipant(participant);
+                    postRoomEventsListener.afterRoomConnected(room);
+                    break;
+                }
+            }
+
+            @Override
+            public void onConnectFailure(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull TwilioException e) {
+                Log.d(TAG, "Failed to connect to room.");
+                oneToOneCall.setInviteSent(false);
+                configureAudio(false);
+                postRoomEventsListener.afterRoomConnectionFailure();
+            }
+
+            @Override
+            public void onReconnecting(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull TwilioException twilioException) { }
+
+            @Override
+            public void onReconnected(@androidx.annotation.NonNull Room room) { }
+
+            @Override
+            public void onDisconnected(@NonNull Room room, TwilioException e) {
+                try {
+                    Log.d(TAG, "Disconnected from room: " + room.getName());
+                    localParticipant = null;
+                    RoomApplozicManager.this.room = null;
+                    configureAudio(false);
+                    if (!oneToOneCall.isReceived() && oneToOneCall.getCallStartTime() > 0) {
+                        long diff = (System.currentTimeMillis() - oneToOneCall.getCallStartTime());
+                        videoCallNotificationHelper.sendVideoCallEnd(getContactCalled(), getCallId(), String.valueOf(diff));
+                    }
+                    postRoomEventsListener.afterRoomDisconnected(room);
+                } catch (Exception exp) {
+                    exp.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onParticipantConnected(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull RemoteParticipant remoteParticipant) {
+                Log.d(TAG, "Participant connected.");
+                addRemoteParticipant(remoteParticipant);
+                if (!oneToOneCall.isReceived()) {
+                    oneToOneCall.setCallStartTime(System.currentTimeMillis());
+                }
+                postRoomEventsListener.afterParticipantConnected(remoteParticipant);
+            }
+
+            @Override
+            public void onParticipantDisconnected(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull RemoteParticipant remoteParticipant) {
+                Log.d(TAG, "Participant has disconnected.");
+                removeRemoteParticipant(remoteParticipant);
+                postRoomEventsListener.afterParticipantDisconnected(remoteParticipant);
+            }
+
+            @Override
+            public void onRecordingStarted(@androidx.annotation.NonNull Room room) {
+                /*
+                 * Indicates when media shared to a Room is being recorded. Note that
+                 * recording is only available in our Group Rooms developer preview.
+                 */
+                Log.d(TAG, "onRecordingStarted");
+            }
+
+            @Override
+            public void onRecordingStopped(@androidx.annotation.NonNull Room room) {
+                /*
+                 * Indicates when media shared to a Room is no longer being recorded. Note that
+                 * recording is only available in our Group Rooms developer preview.
+                 */
+                Log.d(TAG, "onRecordingStopped");
+            }
+        };
+    }
+
+    protected RemoteParticipant.Listener remoteParticipantListener() {
+        return new RemoteParticipant.Listener() {
+            @Override
+            public void onAudioTrackPublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) { }
+
+            @Override
+            public void onAudioTrackUnpublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) { }
+
+            @Override
+            public void onAudioTrackSubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication, @androidx.annotation.NonNull RemoteAudioTrack remoteAudioTrack) { }
+
+            @Override
+            public void onAudioTrackSubscriptionFailed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication, @androidx.annotation.NonNull TwilioException twilioException) { }
+
+            @Override
+            public void onAudioTrackUnsubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication, @androidx.annotation.NonNull RemoteAudioTrack remoteAudioTrack) {
+
+            }
+
+            @Override
+            public void onVideoTrackPublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication) { }
+
+            @Override
+            public void onVideoTrackUnpublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication) { }
+
+            @Override
+            public void onVideoTrackSubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication, @androidx.annotation.NonNull RemoteVideoTrack remoteVideoTrack) {
+                postRoomParticipantEventsListener.afterVideoTrackSubscribed(remoteVideoTrack);
+            }
+
+            @Override
+            public void onVideoTrackSubscriptionFailed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication, @androidx.annotation.NonNull TwilioException twilioException) {
+
+            }
+
+            @Override
+            public void onVideoTrackUnsubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication, @androidx.annotation.NonNull RemoteVideoTrack remoteVideoTrack) {
+                postRoomParticipantEventsListener.afterVideoTrackUnsubscribed(remoteVideoTrack);
+            }
+
+            @Override
+            public void onDataTrackPublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteDataTrackPublication remoteDataTrackPublication) {
+
+            }
+
+            @Override
+            public void onDataTrackUnpublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteDataTrackPublication remoteDataTrackPublication) {
+
+            }
+
+            @Override
+            public void onDataTrackSubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteDataTrackPublication remoteDataTrackPublication, @androidx.annotation.NonNull RemoteDataTrack remoteDataTrack) {
+
+            }
+
+            @Override
+            public void onDataTrackSubscriptionFailed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteDataTrackPublication remoteDataTrackPublication, @androidx.annotation.NonNull TwilioException twilioException) {
+
+            }
+
+            @Override
+            public void onDataTrackUnsubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteDataTrackPublication remoteDataTrackPublication, @androidx.annotation.NonNull RemoteDataTrack remoteDataTrack) {
+
+            }
+
+            @Override
+            public void onAudioTrackEnabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
+
+            }
+
+            @Override
+            public void onAudioTrackDisabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
+
+            }
+
+            @Override
+            public void onVideoTrackEnabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication) {
+
+            }
+
+            @Override
+            public void onVideoTrackDisabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication) {
+
+            }
+        };
+    }
+}

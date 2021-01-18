@@ -57,7 +57,6 @@ public class RoomApplozicManager {
 
     Context context;
     protected String accessToken;
-    public final LocalBroadcastManager localBroadcastManager = LocalBroadcastManager.getInstance(context);
     private int previousAudioMode;
     private boolean previousMicrophoneMute;
     private boolean audioCallInForeground; //the call (audio) is in foreground
@@ -79,12 +78,14 @@ public class RoomApplozicManager {
     protected BroadcastReceiver applozicBroadCastReceiver;
     protected AppContactService contactService;
 
-    public RoomApplozicManager(Context context, boolean audioCallInForeground, String callId, String contactId, boolean videoCall, boolean received, PostRoomEventsListener postRoomEventsListener, PostRoomParticipantEventsListener postRoomParticipantEventsListener) {
+    public RoomApplozicManager(Context context, boolean audioCallInForeground, String callId, String contactId, boolean videoCall, boolean received) {
         this.context = context;
         contactService = new AppContactService(context);
         this.audioCallInForeground = audioCallInForeground;
         oneToOneCall = new OneToOneCall(callId, videoCall, contactService.getContactById(contactId), received);
         videoCallNotificationHelper = new VideoCallNotificationHelper(context, !videoCall);
+        localAudioTrack = createAndReturnLocalAudioTrack();
+        localVideoTrack = createAndReturnLocalVideoTrack();
         try {
             cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
         } catch (IllegalStateException e) {
@@ -92,8 +93,6 @@ public class RoomApplozicManager {
             cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.BACK_CAMERA);
         }
         audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        this.postRoomEventsListener = postRoomEventsListener;
-        this.postRoomParticipantEventsListener = postRoomParticipantEventsListener;
         initializeApplozicNotificationBroadcast();
     }
 
@@ -169,14 +168,20 @@ public class RoomApplozicManager {
         return room;
     }
 
-    public void changeRoomPostEventListeners(PostRoomEventsListener postRoomEventsListener, PostRoomParticipantEventsListener postRoomParticipantEventsListener) {
-        this.postRoomEventsListener = postRoomEventsListener;
-        this.postRoomParticipantEventsListener = postRoomParticipantEventsListener;
+    public boolean isCallReceived() {
+        if(getOneToOneCall() != null) {
+            return getOneToOneCall().isReceived();
+        } else {
+            return false;
+        }
     }
 
-    public void changeRoomCallState(boolean audioCallInForeground, PostRoomEventsListener postRoomEventsListener, PostRoomParticipantEventsListener postRoomParticipantEventsListener) {
-        this.audioCallInForeground = audioCallInForeground;
-        changeRoomPostEventListeners(postRoomEventsListener, postRoomParticipantEventsListener);
+    public void setPostRoomEventsListener(PostRoomEventsListener postRoomEventsListener) {
+        this.postRoomEventsListener = postRoomEventsListener;
+    }
+
+    public void setPostRoomParticipantEventsListener(PostRoomParticipantEventsListener postRoomParticipantEventsListener) {
+        this.postRoomParticipantEventsListener = postRoomParticipantEventsListener;
     }
 
     public void publishLocalVideoTrack() {
@@ -215,7 +220,11 @@ public class RoomApplozicManager {
         return (oneToOneCall.isInviteSent() && (oneToOneCall.getParticipantId() == null || !oneToOneCall.getParticipantId().equals(getContactCalled().getUserId())));
     }
 
-    public long getTimeDuration() {
+    public boolean isCallRinging() {
+        return oneToOneCall.isInviteSent() && oneToOneCall.getParticipantId() == null;
+    }
+
+    public long getScheduledStopTimeDuration() {
         return oneToOneCall.isReceived() ? INCOMING_CALL_TIMEOUT : VideoCallNotificationHelper.MAX_NOTIFICATION_RING_DURATION + 10 * 1000;
     }
 
@@ -239,7 +248,7 @@ public class RoomApplozicManager {
         }
     }
 
-    protected void sendInvite() {
+    private void sendApplozicCallRequestAndConnectToRoom() {
         if (isVideoCall()) {
             setCallId(videoCallNotificationHelper.sendVideoCallRequest(getContactCalled()));
         } else {
@@ -248,11 +257,11 @@ public class RoomApplozicManager {
         connectToRoom(getCallId());
     }
 
-    public void initiateCall() {
-        if (oneToOneCall.isReceived()) {
+    public void initiateRoomCall() {
+        if (oneToOneCall.isReceived() && !TextUtils.isEmpty(getCallId())) {
             connectToRoom(getCallId());
         } else {
-            sendInvite();
+            sendApplozicCallRequestAndConnectToRoom();
             oneToOneCall.setInviteSent(true);
         }
 
@@ -331,11 +340,17 @@ public class RoomApplozicManager {
     }
 
     public LocalAudioTrack createAndReturnLocalAudioTrack() {
+        if(localAudioTrack != null) {
+            return localAudioTrack;
+        }
         localAudioTrack = LocalAudioTrack.create(context, true);
         return localAudioTrack;
     }
 
     public LocalVideoTrack createAndReturnLocalVideoTrack() {
+        if(localVideoTrack != null) {
+            return localVideoTrack;
+        }
         if(cameraCapturer == null) {
             try {
                 cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
@@ -360,7 +375,9 @@ public class RoomApplozicManager {
             remoteParticipant.setListener(remoteParticipantListener());
 
             if (remoteVideoTrackPublication.isTrackSubscribed()) {
-                postRoomParticipantEventsListener.afterParticipantConnectedToCall(remoteVideoTrackPublication);
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterParticipantConnectedToCall(remoteVideoTrackPublication);
+                }
             }
         }
     }
@@ -376,7 +393,9 @@ public class RoomApplozicManager {
                     remoteParticipant.getRemoteVideoTracks().get(0);
 
             if (remoteVideoTrackPublication.isTrackSubscribed()) {
-                postRoomParticipantEventsListener.afterParticipantDisconnectedFromCall(remoteVideoTrackPublication);
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterParticipantDisconnectedFromCall(remoteVideoTrackPublication);
+                }
             }
         }
     }
@@ -405,16 +424,7 @@ public class RoomApplozicManager {
         }
     }
 
-    public void disconnectFromRoomBeforeConnection() {
-        if (oneToOneCall.isInviteSent() && oneToOneCall.getParticipantId() == null) {
-            oneToOneCall.setInviteSent(false);
-            videoCallNotificationHelper.sendCallMissed(getContactCalled(), getCallId());
-            videoCallNotificationHelper.sendVideoCallMissedMessage(getContactCalled(), getCallId());
-
-        }
-    }
-
-    protected void connectToRoom(String roomName) {
+    private void connectToRoom(String roomName) {
         try {
             configureAudio(true);
             ConnectOptions.Builder connectOptionsBuilder = new ConnectOptions.Builder(accessToken)
@@ -459,7 +469,7 @@ public class RoomApplozicManager {
         }
     }
 
-    protected Room.Listener roomListener() {
+    private Room.Listener roomListener() {
         return new Room.Listener() {
             @Override
             public void onConnected(@androidx.annotation.NonNull Room room) {
@@ -468,7 +478,9 @@ public class RoomApplozicManager {
                 localParticipant = room.getLocalParticipant();
                 for (RemoteParticipant participant : room.getRemoteParticipants()) {
                     addRemoteParticipant(participant);
-                    postRoomEventsListener.afterRoomConnected(room);
+                    if(postRoomEventsListener != null) {
+                        postRoomEventsListener.afterRoomConnected(room);
+                    }
                     break;
                 }
             }
@@ -478,7 +490,9 @@ public class RoomApplozicManager {
                 Log.d(TAG, "Failed to connect to room.");
                 oneToOneCall.setInviteSent(false);
                 configureAudio(false);
-                postRoomEventsListener.afterRoomConnectionFailure();
+                if(postRoomEventsListener != null) {
+                    postRoomEventsListener.afterRoomConnectionFailure();
+                }
             }
 
             @Override
@@ -498,7 +512,9 @@ public class RoomApplozicManager {
                         long diff = (System.currentTimeMillis() - oneToOneCall.getCallStartTime());
                         videoCallNotificationHelper.sendVideoCallEnd(getContactCalled(), getCallId(), String.valueOf(diff));
                     }
-                    postRoomEventsListener.afterRoomDisconnected(room);
+                    if(postRoomEventsListener != null) {
+                        postRoomEventsListener.afterRoomDisconnected(room);
+                    }
                 } catch (Exception exp) {
                     exp.printStackTrace();
                 }
@@ -511,14 +527,18 @@ public class RoomApplozicManager {
                 if (!oneToOneCall.isReceived()) {
                     oneToOneCall.setCallStartTime(System.currentTimeMillis());
                 }
-                postRoomEventsListener.afterParticipantConnected(remoteParticipant);
+                if(postRoomEventsListener != null) {
+                    postRoomEventsListener.afterParticipantConnected(remoteParticipant);
+                }
             }
 
             @Override
             public void onParticipantDisconnected(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull RemoteParticipant remoteParticipant) {
                 Log.d(TAG, "Participant has disconnected.");
                 removeRemoteParticipant(remoteParticipant);
-                postRoomEventsListener.afterParticipantDisconnected(remoteParticipant);
+                if(postRoomEventsListener != null) {
+                    postRoomEventsListener.afterParticipantDisconnected(remoteParticipant);
+                }
             }
 
             @Override
@@ -541,7 +561,7 @@ public class RoomApplozicManager {
         };
     }
 
-    protected RemoteParticipant.Listener remoteParticipantListener() {
+    private RemoteParticipant.Listener remoteParticipantListener() {
         return new RemoteParticipant.Listener() {
             @Override
             public void onAudioTrackPublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) { }
@@ -568,7 +588,9 @@ public class RoomApplozicManager {
 
             @Override
             public void onVideoTrackSubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication, @androidx.annotation.NonNull RemoteVideoTrack remoteVideoTrack) {
-                postRoomParticipantEventsListener.afterVideoTrackSubscribed(remoteVideoTrack);
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterVideoTrackSubscribed(remoteVideoTrack);
+                }
             }
 
             @Override
@@ -578,7 +600,9 @@ public class RoomApplozicManager {
 
             @Override
             public void onVideoTrackUnsubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication, @androidx.annotation.NonNull RemoteVideoTrack remoteVideoTrack) {
-                postRoomParticipantEventsListener.afterVideoTrackUnsubscribed(remoteVideoTrack);
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterVideoTrackUnsubscribed(remoteVideoTrack);
+                }
             }
 
             @Override

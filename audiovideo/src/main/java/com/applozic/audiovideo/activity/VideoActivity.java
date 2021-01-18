@@ -1,5 +1,6 @@
 package com.applozic.audiovideo.activity;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
@@ -34,6 +35,7 @@ public class VideoActivity extends AudioCallActivityV2 {
         super(true);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,7 +50,9 @@ public class VideoActivity extends AudioCallActivityV2 {
         //profileImage = (ImageView) findViewById(R.id.applozic_audio_profile_image);
         textCount = (TextView) findViewById(R.id.applozic_audio_timer);
 
-        contactName.setText(roomApplozicManager.getContactCalled().getDisplayName());
+        if(contactCalled != null) {
+            contactName.setText(contactCalled.getDisplayName());
+        }
         //pauseVideo = true;
 
         primaryVideoView = (VideoView) findViewById(R.id.primary_video_view);
@@ -92,23 +96,19 @@ public class VideoActivity extends AudioCallActivityV2 {
         if (!checkPermissionForCameraAndMicrophone()) {
             requestPermissionForCameraAndMicrophone();
         } else {
-            setupAudioAndVideoTracks();
-            intializeUI();
-            initializeApplozic();
+            setupAndStartCallService();
         }
 
     }
 
     private void hideShowWithAnimation() {
-
-        //Camera Actions
         if (switchCameraActionFab.isShown()) {
             switchCameraActionFab.hide();
         } else {
             switchCameraActionFab.show();
 
         }
-        //Mute Actions
+
         if (muteActionFab.isShown()) {
             muteActionFab.hide();
         } else {
@@ -130,17 +130,14 @@ public class VideoActivity extends AudioCallActivityV2 {
     }
 
     @Override
-    public void initializeApplozic() {
-        super.initializeApplozic();
-
+    public void setupAndStartCallService() {
+        super.setupAndStartCallService();
     }
-
 
     @Override
     protected void onResume() {
         super.onResume();
     }
-
 
     @Override
     public void onPause() {
@@ -161,24 +158,27 @@ public class VideoActivity extends AudioCallActivityV2 {
      * The initial state when there is no active conversation.
      */
     @Override
-    protected void setDisconnectAction() {
-        super.setDisconnectAction();
+    protected void setDisconnectAction(LocalVideoTrack localVideoTrack, CameraCapturer cameraCapturer) {
+        super.setDisconnectAction(localVideoTrack, cameraCapturer);
+        if(cameraCapturer == null || localVideoTrack == null) {
+            return;
+        }
         if (isFrontCamAvailable(getBaseContext())) {
             switchCameraActionFab.show();
-            switchCameraActionFab.setOnClickListener(switchCameraClickListener());
+            switchCameraActionFab.setOnClickListener(switchCameraClickListener(cameraCapturer));
         } else {
             switchCameraActionFab.hide();
         }
         localVideoActionFab.show();
-        localVideoActionFab.setOnClickListener(localVideoClickListener());
+        localVideoActionFab.setOnClickListener(localVideoClickListener(localVideoTrack));
     }
 
-    private View.OnClickListener switchCameraClickListener() {
+    private View.OnClickListener switchCameraClickListener(CameraCapturer cameraCapturer) {
         return new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
-                    CameraCapturer cameraCapturer = roomApplozicManager.getCameraCapturer();
+                    //CameraCapturer cameraCapturer = roomApplozicManager.getCameraCapturer();
                     if (cameraCapturer != null) {
                         CameraCapturer.CameraSource cameraSource = cameraCapturer.getCameraSource();
                         cameraCapturer.switchCamera();
@@ -195,11 +195,12 @@ public class VideoActivity extends AudioCallActivityV2 {
         };
     }
 
-    private View.OnClickListener localVideoClickListener() {
+    //TODO: ServiceStuff pass local video track
+    private View.OnClickListener localVideoClickListener(LocalVideoTrack localVideoTrack) {
         return new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                LocalVideoTrack localVideoTrack = roomApplozicManager.getLocalVideoTrack();
+                //LocalVideoTrack localVideoTrack = roomApplozicManager.getLocalVideoTrack();
                 /*
                  * Enable/disable the local video track
                  */

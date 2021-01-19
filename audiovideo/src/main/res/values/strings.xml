@@ -13,6 +13,5 @@
     <string name="call_close_session_dialog_message">This will disconnect your call. Are you sure?</string>
     <string name="status_text_calling">Dialing…</string>
     <string name="status_text_reconnecting">Reconnecting…</string>
-    <string name="status_text_muted">Call Muted.</string>
-    <string name="status_text_paused">Video paused.</string>
+    <string name="status_text_paused">Video paused</string>
 </resources>

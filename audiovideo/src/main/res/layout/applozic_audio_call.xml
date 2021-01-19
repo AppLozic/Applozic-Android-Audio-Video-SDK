@@ -119,4 +119,13 @@
         android:textColor="@color/whitesmoke"
         android:textSize="20sp" />
 
+    <ImageView
+        android:id="@+id/audio_mute_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/buttonsContainer"
+        android:layout_marginBottom="30dp"
+        android:layout_centerHorizontal="true"
+        android:src="@drawable/ic_mic_off_red_24px"
+        android:visibility="gone" />
 </RelativeLayout>

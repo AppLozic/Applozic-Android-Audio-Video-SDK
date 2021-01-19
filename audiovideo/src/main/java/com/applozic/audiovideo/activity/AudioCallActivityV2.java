@@ -111,6 +111,8 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
      */
     protected TextView videoStatusTextView;
     protected TextView audioStatusTextView;
+    protected ImageView audioMuteStatus;
+    protected ImageView videoMuteStatus;
     protected CameraCapturer cameraCapturer;
 
     protected LocalAudioTrack localAudioTrack;
@@ -181,18 +183,20 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     }
 
     boolean isVideoCallStatusTextVideoPaused() {
-        return getString(R.string.status_text_paused).equals(videoStatusTextView.getText());
+        return getString(R.string.status_text_paused).contentEquals(videoStatusTextView.getText());
     }
 
     void hideVideoCallStatusText() {
         if(videoStatusTextView != null) {
-            videoStatusTextView.setVisibility(View.GONE);
+            videoStatusTextView.setVisibility(View.INVISIBLE);
         }
     }
 
     void setVideoCallStatusText(String callStatusText) {
-        videoStatusTextView.setVisibility(View.VISIBLE);
-        videoStatusTextView.setText(callStatusText);
+        if(videoStatusTextView != null) {
+            videoStatusTextView.setVisibility(View.VISIBLE);
+            videoStatusTextView.setText(callStatusText);
+        }
     }
 
     void hideAudioCallStatusText() {
@@ -202,8 +206,34 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     }
 
     void setAudioCallStatusText(String callStatusText) {
-        audioStatusTextView.setVisibility(View.VISIBLE);
-        audioStatusTextView.setText(callStatusText);
+        if(audioStatusTextView != null) {
+            audioStatusTextView.setVisibility(View.VISIBLE);
+            audioStatusTextView.setText(callStatusText);
+        }
+    }
+
+    void showMuteStatus(boolean videoCall) {
+        if (videoCall && videoMuteStatus == null) {
+            return;
+        }
+        if(!videoCall && audioMuteStatus == null) {
+            return;
+        }
+
+        if (videoCall) {
+            videoMuteStatus.setVisibility(View.VISIBLE);
+        } else {
+            audioMuteStatus.setVisibility(View.VISIBLE);
+        }
+    }
+
+    void hideMuteStatus() {
+        if(audioMuteStatus != null) {
+            audioMuteStatus.setVisibility(View.INVISIBLE);
+        }
+        if(videoMuteStatus != null) {
+            videoMuteStatus.setVisibility(View.INVISIBLE);
+        }
     }
 
     @Override
@@ -247,7 +277,11 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
 
         videoStatusTextView = (TextView) findViewById(R.id.video_status_textview);
         audioStatusTextView = (TextView) findViewById(R.id.applozic_audio_status);
-        setAudioCallStatusText(getString(R.string.status_text_calling));
+        audioMuteStatus = (ImageView) findViewById(R.id.audio_mute_status);
+        videoMuteStatus = (ImageView) findViewById(R.id.video_mute_status);
+        if(!incomingCall) {
+            setAudioCallStatusText(getString(R.string.status_text_calling));
+        }
 
         connectActionFab = (FloatingActionButton) findViewById(R.id.call_action_fab);
         muteActionFab = (FloatingActionButton) findViewById(R.id.mute_action_fab);
@@ -795,12 +829,12 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
 
             @Override
             public void onAudioTrackEnabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
-
+                hideMuteStatus();
             }
 
             @Override
             public void onAudioTrackDisabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
-
+                showMuteStatus(videoCall);
             }
 
             @Override

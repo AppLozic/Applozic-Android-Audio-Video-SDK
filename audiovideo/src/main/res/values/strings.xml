@@ -11,7 +11,7 @@
     <string name="multiple_participants_not_available">Multiple participants are not currently support in this UI</string>
     <string name="call_close_session_dialog_title">Ongoing call</string>
     <string name="call_close_session_dialog_message">This will disconnect your call. Are you sure?</string>
-    <string name="status_text_calling">Dialing…</string>
+    <string name="status_text_calling">Calling…</string>
     <string name="status_text_reconnecting">Reconnecting…</string>
     <string name="status_text_paused">Video paused</string>
 </resources>

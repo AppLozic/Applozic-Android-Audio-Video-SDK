@@ -41,7 +41,7 @@ dependencies {
     //release
     //api project(':mobicomkitui')
     //development
-    implementation 'com.github.AppLozic.Applozic-Android-SDK:mobicomkitui:5.96.1'
+    implementation 'com.github.AppLozic.Applozic-Android-SDK:mobicomkitui:master-SNAPSHOT'
 }
 /*
 

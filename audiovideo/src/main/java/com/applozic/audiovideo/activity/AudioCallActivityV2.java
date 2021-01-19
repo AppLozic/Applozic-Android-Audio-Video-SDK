@@ -687,6 +687,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
             @Override
             public void onDisconnected(@NonNull Room room, TwilioException e) {
                 try {
+                    Toast.makeText(AudioCallActivityV2.this, AudioCallActivityV2.this.getString(R.string.call_end), Toast.LENGTH_SHORT).show();
                     localParticipant = null;
                     Log.d(TAG, "Disconnected from room" + room.getName());
                     AudioCallActivityV2.this.room = null;

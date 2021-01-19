@@ -14,4 +14,5 @@
     <string name="status_text_calling">Calling…</string>
     <string name="status_text_reconnecting">Reconnecting…</string>
     <string name="status_text_paused">Video paused</string>
+    <string name="call_end">Call end</string>
 </resources>

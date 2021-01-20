@@ -187,26 +187,26 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     }
 
     void hideVideoCallStatusText() {
-        if(videoStatusTextView != null) {
+        if (videoStatusTextView != null) {
             videoStatusTextView.setVisibility(View.INVISIBLE);
         }
     }
 
     void setVideoCallStatusText(String callStatusText) {
-        if(videoStatusTextView != null) {
+        if (videoStatusTextView != null) {
             videoStatusTextView.setVisibility(View.VISIBLE);
             videoStatusTextView.setText(callStatusText);
         }
     }
 
     void hideAudioCallStatusText() {
-        if(audioStatusTextView != null) {
+        if (audioStatusTextView != null) {
             audioStatusTextView.setVisibility(View.GONE);
         }
     }
 
     void setAudioCallStatusText(String callStatusText) {
-        if(audioStatusTextView != null) {
+        if (audioStatusTextView != null) {
             audioStatusTextView.setVisibility(View.VISIBLE);
             audioStatusTextView.setText(callStatusText);
         }
@@ -216,7 +216,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
         if (videoCall && videoMuteStatus == null) {
             return;
         }
-        if(!videoCall && audioMuteStatus == null) {
+        if (!videoCall && audioMuteStatus == null) {
             return;
         }
 
@@ -228,10 +228,10 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     }
 
     void hideMuteStatus() {
-        if(audioMuteStatus != null) {
+        if (audioMuteStatus != null) {
             audioMuteStatus.setVisibility(View.INVISIBLE);
         }
-        if(videoMuteStatus != null) {
+        if (videoMuteStatus != null) {
             videoMuteStatus.setVisibility(View.INVISIBLE);
         }
     }
@@ -279,7 +279,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
         audioStatusTextView = (TextView) findViewById(R.id.applozic_audio_status);
         audioMuteStatus = (ImageView) findViewById(R.id.audio_mute_status);
         videoMuteStatus = (ImageView) findViewById(R.id.video_mute_status);
-        if(!incomingCall) {
+        if (!incomingCall) {
             setAudioCallStatusText(getString(R.string.status_text_calling));
         }
 
@@ -312,8 +312,8 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
             // Share your camera
             try {
                 cameraCapturer = new CameraCapturer(this, CameraCapturer.CameraSource.FRONT_CAMERA);
-            }catch(IllegalStateException e){
-                Utils.printLog(this,TAG,"Front camera not found on device, using back camera..");
+            } catch (IllegalStateException e) {
+                Utils.printLog(this, TAG, "Front camera not found on device, using back camera..");
                 cameraCapturer = new CameraCapturer(this, CameraCapturer.CameraSource.BACK_CAMERA);
             }
             localVideoTrack = LocalVideoTrack.create(this, true, cameraCapturer, LOCAL_VIDEO_TRACK_NAME);
@@ -366,9 +366,9 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
                     localVideoTrack = LocalVideoTrack.create(this, true, cameraCapturer, LOCAL_VIDEO_TRACK_NAME);
                     localVideoTrack.addRenderer(localVideoView);
 
-            /*
-             * If connected to a Room then share the local video track.
-             */
+                    /*
+                     * If connected to a Room then share the local video track.
+                     */
                     if (localParticipant != null && localVideoTrack != null) {
                         localParticipant.publishTrack(localVideoTrack);
                     }
@@ -463,17 +463,17 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
             ConnectOptions.Builder connectOptionsBuilder = new ConnectOptions.Builder(accessToken)
                     .roomName(roomName);
 
-        /*
-         * Add local audio track to connect options to share with participants.
-         */
+            /*
+             * Add local audio track to connect options to share with participants.
+             */
             if (localAudioTrack != null) {
                 connectOptionsBuilder
                         .audioTracks(Collections.singletonList(localAudioTrack));
             }
 
-        /*
-         * Add local video track to connect options to share with participants.
-         */
+            /*
+             * Add local video track to connect options to share with participants.
+             */
             if (localVideoTrack != null) {
                 connectOptionsBuilder.videoTracks(Collections.singletonList(localVideoTrack));
             }
@@ -555,7 +555,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     }
 
     /*  Set primary view as renderer for participant video track
-    */
+     */
     protected void addRemoteParticipantVideo(VideoTrack videoTrack) {
         if (videoCall) {
             moveLocalVideoToThumbnailView();
@@ -633,8 +633,8 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     }
 
     /*
- * Room events listener
- */
+     * Room events listener
+     */
     protected Room.Listener roomListener() {
         return new Room.Listener() {
             @Override
@@ -666,7 +666,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
 
             @Override
             public void onReconnecting(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull TwilioException twilioException) {
-                if(videoCall) {
+                if (videoCall) {
                     setVideoCallStatusText(getString(R.string.status_text_reconnecting));
                 } else {
                     setAudioCallStatusText(getString(R.string.status_text_reconnecting));
@@ -679,7 +679,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
                 hideVideoCallStatusText();
                 hideAudioCallStatusText();
                 //if remote video is paused (logic is for 1-to-1 video call only)
-                if(videoCall && remoteParticipant != null  && !remoteParticipant.getRemoteVideoTracks().get(0).isTrackEnabled()) {
+                if (videoCall && remoteParticipant != null && !remoteParticipant.getRemoteVideoTracks().get(0).isTrackEnabled()) {
                     setVideoCallStatusText(getString(R.string.status_text_paused));
                 }
             }
@@ -758,10 +758,12 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     protected RemoteParticipant.Listener remoteParticipantListener() {
         return new RemoteParticipant.Listener() {
             @Override
-            public void onAudioTrackPublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) { }
+            public void onAudioTrackPublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
+            }
 
             @Override
-            public void onAudioTrackUnpublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) { }
+            public void onAudioTrackUnpublished(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
+            }
 
             @Override
             public void onAudioTrackSubscribed(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication, @androidx.annotation.NonNull RemoteAudioTrack remoteAudioTrack) {
@@ -840,7 +842,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
 
             @Override
             public void onVideoTrackEnabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication) {
-                if(isVideoCallStatusTextVideoPaused()) {
+                if (isVideoCallStatusTextVideoPaused()) {
                     hideVideoCallStatusText();
                 }
             }
@@ -1035,7 +1037,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     }
 
     public void initializeApplozic() {
-         /*
+        /*
          * Enable changing the volume using the up/down keys during a conversation
          */
         setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
@@ -1054,7 +1056,7 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
             return;
         }
 
-         /*
+        /*
          * Check camera and microphone permissions. Needed in Android M.
          */
         if (!checkPermissionForCameraAndMicrophone()) {

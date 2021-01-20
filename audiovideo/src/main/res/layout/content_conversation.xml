@@ -36,9 +36,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:textDirection="locale"
             android:textAlignment="gravity"
             android:textColor="@color/white"
+            android:textDirection="locale"
             android:textSize="20sp" />
 
         <ImageView

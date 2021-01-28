@@ -31,6 +31,10 @@ android {
         sourceCompatibility 1.8
         targetCompatibility 1.8
     }
+
+    configurations.all {
+        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+    }
 }
 
 dependencies {
@@ -40,8 +44,8 @@ dependencies {
     implementation "com.twilio:video-android:5.13.0"
     //release
     //api project(':mobicomkitui')
-    //development
-    implementation 'com.github.AppLozic.Applozic-Android-SDK:mobicomkitui:5.96.1'
+    //development (changes for the SDK can be pushed to the dev branch of the public repo)
+    implementation 'com.github.AppLozic.Applozic-Android-SDK:mobicomkitui:dev-SNAPSHOT'
 }
 /*
 

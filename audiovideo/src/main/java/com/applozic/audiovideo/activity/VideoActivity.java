@@ -4,11 +4,14 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Bundle;
+
 import androidx.core.content.ContextCompat;
+
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -46,8 +49,11 @@ public class VideoActivity extends AudioCallActivityV2 {
         primaryVideoView = (VideoView) findViewById(R.id.primary_video_view);
         thumbnailVideoView = (VideoView) findViewById(R.id.thumbnail_video_view);
 
+        videoMuteStatus = (ImageView) findViewById(R.id.video_mute_status);
         videoStatusTextView = (TextView) findViewById(R.id.video_status_textview);
-        videoStatusTextView.setVisibility(View.GONE);
+        if (!incomingCall) {
+            setVideoCallStatusText(getString(R.string.status_text_calling));
+        }
 
         connectActionFab = (FloatingActionButton) findViewById(R.id.call_action_fab);
         switchCameraActionFab = (FloatingActionButton) findViewById(R.id.switch_camera_action_fab);

@@ -25,9 +25,10 @@
 
     <LinearLayout
         android:id="@+id/status"
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:layout_gravity="center"
+        android:gravity="center"
         android:orientation="vertical">
 
         <TextView
@@ -35,12 +36,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:textDirection="locale"
             android:textAlignment="gravity"
-            android:text="Room Status"
-            android:textColor="@color/alphabet_g"
+            android:textColor="@color/white"
+            android:textDirection="locale"
             android:textSize="20sp" />
 
+        <ImageView
+            android:id="@+id/video_mute_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="50dp"
+            android:src="@drawable/ic_mic_off_red_24px"
+            android:visibility="gone" />
     </LinearLayout>
 
 </FrameLayout>

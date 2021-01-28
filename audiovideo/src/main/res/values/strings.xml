@@ -1,12 +1,18 @@
 <resources>
     <string name="app_name">Applozic</string>
     <string name="permissions_needed">Permission is not granted</string>
-    <string name="no_answer">No answers..</string>
-    <string name="connection_error">Connection error..</string>
-    <string name="participant_busy">Participant is busy..</string>
+    <string name="no_answer">No answer…</string>
+    <string name="connection_error">Connection error…</string>
+    <string name="participant_busy">Participant is busy…</string>
     <string name="no_network_connectivity">No network connectivity.</string>
-    <string name="connecting">Connecting...</string>
+    <string name="connecting">Connecting…</string>
     <string name="incoming_audio_call">Incoming audio call</string>
     <string name="incoming_video_call">Incoming video call</string>
     <string name="multiple_participants_not_available">Multiple participants are not currently support in this UI</string>
+    <string name="call_close_session_dialog_title">Ongoing call</string>
+    <string name="call_close_session_dialog_message">This will disconnect your call. Are you sure?</string>
+    <string name="status_text_calling">Calling…</string>
+    <string name="status_text_reconnecting">Reconnecting…</string>
+    <string name="status_text_paused">Video paused</string>
+    <string name="call_end">Call end</string>
 </resources>

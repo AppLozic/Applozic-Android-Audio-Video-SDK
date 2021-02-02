@@ -154,9 +154,6 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     private int previousAudioMode;
     private int cnt;
     private boolean previousMicrophoneMute;
-    protected boolean remoteMuted;
-    protected boolean remoteVideoPaused;
-    protected boolean remoteReconnecting;
 
 
     public AudioCallActivityV2() {
@@ -243,24 +240,6 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setOpenStatus(true);
-
-        if(savedInstanceState != null) {
-            if (savedInstanceState.containsKey(VideoActivity.INSTANCE_STATE_MUTE)) {
-                remoteMuted = savedInstanceState.getBoolean(VideoActivity.INSTANCE_STATE_MUTE);
-            } else {
-                remoteMuted = false;
-            }
-            if (savedInstanceState.containsKey(VideoActivity.INSTANCE_STATE_RECONNECTING)) {
-                remoteReconnecting = savedInstanceState.getBoolean(VideoActivity.INSTANCE_STATE_RECONNECTING);
-            } else {
-                remoteReconnecting = false;
-            }
-            if (savedInstanceState.containsKey(VideoActivity.INSTANCE_STATE_PAUSED)) {
-                remoteVideoPaused = savedInstanceState.getBoolean(VideoActivity.INSTANCE_STATE_PAUSED);
-            } else {
-                remoteVideoPaused = false;
-            }
-        }
 
         /*
          * Set the initial state of the UI
@@ -692,7 +671,6 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
                 } else {
                     setAudioCallStatusText(getString(R.string.status_text_reconnecting));
                 }
-                remoteReconnecting = true;
             }
 
             @Override
@@ -704,7 +682,6 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
                 if (videoCall && remoteParticipant != null && !remoteParticipant.getRemoteVideoTracks().get(0).isTrackEnabled()) {
                     setVideoCallStatusText(getString(R.string.status_text_paused));
                 }
-                remoteReconnecting = false;
             }
 
             @Override
@@ -856,13 +833,11 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
             @Override
             public void onAudioTrackEnabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
                 hideMuteStatus();
-                remoteMuted = false;
             }
 
             @Override
             public void onAudioTrackDisabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
                 showMuteStatus(videoCall);
-                remoteMuted = true;
             }
 
             @Override
@@ -870,7 +845,6 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
                 if (isVideoCallStatusTextVideoPaused()) {
                     hideVideoCallStatusText();
                 }
-                remoteVideoPaused = false;
             }
 
             @Override
@@ -878,7 +852,6 @@ public class AudioCallActivityV2 extends AppCompatActivity implements TokenGener
                 if (videoCall && remoteParticipant.getIdentity().equals(contactToCall.getUserId()) && room.getState() == CONNECTED) {
                     setVideoCallStatusText(getString(R.string.status_text_paused));
                 }
-                remoteVideoPaused = true;
             }
         };
     }

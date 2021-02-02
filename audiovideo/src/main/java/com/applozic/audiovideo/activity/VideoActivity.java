@@ -24,22 +24,10 @@ import applozic.com.audiovideo.R;
 public class VideoActivity extends AudioCallActivityV2 {
     private static final String TAG = VideoActivity.class.getName();
 
-    public static final String INSTANCE_STATE_PAUSED = "INSTANCE_STATE_PAUSED";
-    public static final String INSTANCE_STATE_MUTE = "INSTANCE_STATE_MUTE";
-    public static final String INSTANCE_STATE_RECONNECTING = "INSTANCE_STATE_RECONNECTING";
-
     LinearLayout videoOptionlayout;
 
     public VideoActivity() {
         super(true);
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        outState.putBoolean(INSTANCE_STATE_PAUSED, remoteVideoPaused);
-        outState.putBoolean(INSTANCE_STATE_MUTE, remoteMuted);
-        outState.putBoolean(INSTANCE_STATE_RECONNECTING, remoteReconnecting);
     }
 
     @Override
@@ -65,20 +53,6 @@ public class VideoActivity extends AudioCallActivityV2 {
         videoStatusTextView = (TextView) findViewById(R.id.video_status_textview);
         if (!incomingCall) {
             setVideoCallStatusText(getString(R.string.status_text_calling));
-        } else {
-            if(remoteReconnecting) {
-                setVideoCallStatusText(getString(R.string.status_text_reconnecting));
-            } else if(remoteVideoPaused) {
-                setVideoCallStatusText(getString(R.string.status_text_paused));
-            } else {
-                hideVideoCallStatusText();
-            }
-        }
-
-        if(remoteMuted) {
-            showMuteStatus(videoCall);
-        } else {
-            hideMuteStatus();
         }
 
         connectActionFab = (FloatingActionButton) findViewById(R.id.call_action_fab);

@@ -1,384 +1,100 @@
-Android Chat SDK
+## Applozic Audio Video Call SDK
 
-### Overview         
+[[Link to our website.]](https://www.applozic.com)
 
-<img align="right" src="https://raw.githubusercontent.com/AppLozic/Applozic-Android-SDK/master/img/android.png" />
+This is the SDK code and sample app for the Applozic Audio Video SDK. 
+You can use this code as a reference to our released SDK. The app can be considered a quick-start app for testing out the waters before you decide to use our messaging and call sdk.
+Feel free to clone and fork the repo and check it out. 
 
+You can file issues in the issue tab. 
 
-Open source Android Chat SDK / Messaging SDK that lets you add real time chat and in-app messaging in your mobile (android, iOS) applications and website.
+---
 
-Signup at [https://www.applozic.com/signup.html](https://www.applozic.com/signup.html?utm_source=github&utm_medium=readme&utm_campaign=android) to get the App ID.
+The AppLozic Audio-Video Call SDK provides high quality IP audio and video calls. With this SDK, your application's users can take part in secure 1-to-1 calls.
 
-Applozic One to One and Group Chat SDK
+The audio and video call feature is currently in its beta version and can be used only when using our pre-built UI.
+Video and audio calls can be enabled for specific users or all user as per your use-case.
 
+### Setup
 
+#### Pre-requisites
 
-### Getting Started       
+- Before setting up the audio-video call feature, make sure you have finished with the [AppLozic messaging integration](https://docs.applozic.com/docs/android-chat-sdk).
+- You will also need to have [push notifications setup](https://docs.applozic.com/docs/android-push-notification).
 
+Without push notifications set-up, calls won't work. Please make sure they are set-up properly before proceeding further.
 
-To integrate android chat library into your android app, signup at [Applozic](https://www.applozic.com/signup.html?utm_source=github&utm_medium=readme&utm_campaign=android) to get the App ID.
 
-Documentation: [Applozic Android Chat & Messaging SDK Documentation](https://www.applozic.com/docs/android-chat-sdk.html?utm_source=github&utm_medium=readme&utm_campaign=android)
+#### Audio-video call Gradle dependency:
 
+To add our Audio-Video Call SDK add the following dependency in your app-level build.gradle.
 
+`implementation 'com.applozic.communication.uiwidget:audiovideo:3.0.0'`
 
-#### Step 1: Add the following in your build.gradle dependency:      
+The Audio-Video Call SDK includes our messaging SDK. If you add a dependency to this SDK, you do not need to add the dependency for our Applozic Messaging SDK.
 
-`implementation 'com.applozic.communication.uiwidget:mobicomkitui:5.96' `
 
-Add the following in gradle android target:      
+#### Enable audio/video feature:
 
+Audio-video call functionality needs to be enabled for our users. Before you log-in users, add the audio and video call feature and set it for the user object as shown below:
 
-```
-android {
+`List<String> featureList =  new ArrayList<>();
+featureList.add(User.Features.IP_AUDIO_CALL.getValue()); //To enable audio call
+featureList.add(User.Features.IP_VIDEO_CALL.getValue()); //To enable video call
+user.setFeatures(featureList);`
 
-        packagingOptions {           
-           exclude 'META-INF/DEPENDENCIES'      
-           exclude 'META-INF/NOTICE'         
-           exclude 'META-INF/LICENSE'      
-           exclude 'META-INF/LICENSE.txt'    
-           exclude 'META-INF/NOTICE.txt' 
-           exclude 'META-INF/ECLIPSE_.SF'
-           exclude 'META-INF/ECLIPSE_.RSA'
-         }    
-    }               
-```
 
+#### Add settings for audio/video activity handler:
 
-#### Step 2: Addition of Permissions,Activities, Services and Receivers in androidmanifest.xml:
-        
-**Note**: Add meta-data, Activities, Services and Receivers within application Tag ``` <application> </application> ```
+In the onSuccess function of UserLoginTask, add the following code:
 
-**Note**: Add Permissions outside the application Tag ``` <application>  ```
-```
+`ApplozicClient.getInstance(context).setHandleDial(true).setIPCallEnabled(true);`
 
-<meta-data android:name="com.applozic.application.key"
-           android:value="<YOUR_APPLOZIC_APP_ID" /> <!-- Applozic App ID -->
+`Map<ApplozicSetting.RequestCode, String> activityCallbacks = new HashMap<ApplozicSetting.RequestCode, String>();
+activityCallbacks.put(ApplozicSetting.RequestCode.AUDIO_CALL, AudioCallActivityV2.class.getName());
+activityCallbacks.put(ApplozicSetting.RequestCode.VIDEO_CALL, VideoActivity.class.getName());`
 
-<meta-data android:name="com.applozic.mobicomkit.notification.smallIcon"
-           android:resource="YOUR_LAUNCHER_SMALL_ICON" /> <!-- Launcher white Icon -->
-           
-<meta-data android:name="com.google.android.geo.API_KEY"
-           android:value="YOUR_GEO_API_KEY" />  <!--Replace with your geo api key from google developer console  --> 
-<!-- For testing purpose use AIzaSyAYB1vPc4cpn_FJv68eS_ZGe1UasBNwxLI
-To disable the location sharing via map add this line ApplozicSetting.getInstance(context).disableLocationSharingViaMap(); in onSuccess of Applozic UserLoginTask -->   
-            
-<meta-data android:name="com.package.name" 
-           android:value="${applicationId}" /> <!-- NOTE: Do NOT change this, it should remain same i.e 'com.package.name' -->
-                     
-```
-   **Note**: If you are **not using gradle build** you need to replace ${applicationId}  with your Android app package name
+`ApplozicSetting.getInstance(context).setActivityCallbacks(activityCallbacks);`
 
-  
-  Define Attachment Folder Name in your string.xml.          
-     
-```
-<string name="default_media_location_folder">YOUR_APP_NAME</string> 
-```
+The above code will be used to identify the call activities for our Applozic Messaging SDK.
 
-Paste the following in your androidmanifest.xml:        
-```
-<activity android:name="com.applozic.mobicomkit.uiwidgets.conversation.activity.ConversationActivity"
-           android:configChanges="keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation"
-           android:label="@string/app_name"
-           android:parentActivityName="<APP_PARENT_ACTIVITY>"
-           android:theme="@style/ApplozicTheme"
-           android:launchMode="singleTask"
-           tools:node="replace">
-      <!-- Parent activity meta-data to support API level 7+ -->
-<meta-data
-           android:name="android.support.PARENT_ACTIVITY"
-           android:value="<APP_PARENT_ACTIVITY>" />
- </activity>               
-```
 
-Replace APP_PARENT_ACTIVITY with your app's parent activity.        
+#### Add the call activities in your AndroidManifest.xml:
 
-#### Step 3: Register user account:     
+<activity
+       android:name="com.applozic.audiovideo.activity.AudioCallActivityV2"
+       android:configChanges="keyboardHidden|orientation|screenSize"
+       android:exported="true" 
+       android:launchMode="singleTop"
+       android:theme="@style/Applozic_FullScreen_Theme"/>
 
+<activity
+       android:name="com.applozic.audiovideo.activity.CallActivity"
+       android:configChanges="orientation|keyboardHidden|screenSize"
+       android:label="@string/app_name"
+       android:launchMode="singleTop"
+       android:theme="@style/Applozic_FullScreen_Theme"/>
 
+<activity
+       android:name="com.applozic.audiovideo.activity.VideoActivity"              
+       android:launchMode="singleTop"
+       android:configChanges="keyboardHidden|orientation|screenSize"              
+       android:exported="true"
+       android:theme="@style/Applozic_FullScreen_Theme"/>
 
-     
-```
-User user = new User();          
-user.setUserId(userId); //userId it can be any unique user identifier
-user.setDisplayName(displayName); //displayName is the name of the user which will be shown in chat messages
-user.setEmail(email); //optional  
-user.setAuthenticationTypeId(User.AuthenticationType.APPLOZIC.getValue());  //User.AuthenticationType.APPLOZIC.getValue() for password verification from Applozic server and User.AuthenticationType.CLIENT.getValue() for access Token verification from your server set access token as password
-user.setPassword(""); //optional, leave it blank for testing purpose, read this if you want to add additional security by verifying password from your server https://www.applozic.com/docs/configuration.html#access-token-url
-user.setImageLink("");//optional,pass your image link
 
- Applozic.connectUser(context, user, new AlLoginHandler() {
-                @Override
-                public void onSuccess(RegistrationResponse registrationResponse, Context context) {
-                    // After successful registration with Applozic server the callback will come here 
-                }
+#### ProGuard Setup
 
-                @Override
-                public void onFailure(RegistrationResponse registrationResponse, Exception exception) {
-                    // If any failure in registration the callback  will come here 
-             }
-   });                                      
-```
+If you are using ProGuard, add the following to your ProGuard configuration file:
 
-If it is a new user, new user account will get created else existing user will be logged in to the application.
-You can check if user is logged in to applozic or not by using ``` Applozic.isConnected(context) ```
+-keep class org.webrtc.** { *; }
+-keep class com.twilio.video.** { *; }
+-keep class com.twilio.common.** { *; }
 
 
+#### Congratulations
 
-#### Step 4: Push Notification Setup
+The setup is complete.
+If a user has audio video calls enabled for them, they will be able to access the call options from the toolbar in the conversation screen/activity for the contact they wish to call.
 
-***Go to Applozic Dashboard, Edit Application -> Push Notification -> Android -> GCM/FCM Server Key.***
-
-#### Firebase Cloud Messaging (FCM)  is already enabled in my app
-
-  Add the below code and pass the FCM registration token:
-  
- **1.** In UserLoginTask "onSuccess" (refer Step 3)
-  
-
-```
-if(MobiComUserPreference.getInstance(context).isRegistered()) {
-  Applozic.registerForPushNotification(context, registrationToken, new AlPushNotificationHandler() {
-                @Override
-                public void onSuccess(RegistrationResponse registrationResponse) {
-                   
-                }
-
-                @Override
-                public void onFailure(RegistrationResponse registrationResponse, Exception exception) {
-
-                }
-    });
-}
-```
-
- **2.** In your FcmListenerService  onNewToken(Token registrationToken) method
-
- ```
- if (MobiComUserPreference.getInstance(this).isRegistered()) {
-      new RegisterUserClientService(this).updatePushNotificationId(registrationToken);
- }
-```
-
-##### For Receiving Notifications in FCM
-
-Add the following in your FcmListenerService  in onMessageReceived(RemoteMessage remoteMessage) 
-
-```
- if (MobiComPushReceiver.isMobiComPushNotification(remoteMessage.getData())) {
-           MobiComPushReceiver.processMessageAsync(this, remoteMessage.getData());
-           return;
-   }
-```
-
-
-
-#### GCM is already enabled in my app
-
-If you already have GCM enabled in your app, add the below code and pass the GCM registration token:
-  
- **1.** In UserLoginTask "onSuccess" (refer Step 3)
-  
-
-```
-if(MobiComUserPreference.getInstance(context).isRegistered()) {
-  Applozic.registerForPushNotification(context, registrationToken, new AlPushNotificationHandler() {
-                @Override
-                public void onSuccess(RegistrationResponse registrationResponse) {
-                   
-                }
-
-                @Override
-                public void onFailure(RegistrationResponse registrationResponse, Exception exception) {
-
-                }
-     });
-}
-```
-
- **2.** At the place where you are getting the GCM registration token in your app.       
-
- ```
- if (MobiComUserPreference.getInstance(this).isRegistered()) {
-      new RegisterUserClientService(this).updatePushNotificationId(registrationToken);
- }
-```
-
-##### For Receiving Notifications In GCM
-
-
-Add the following in your GcmListenerService  in onMessageReceived 
-
-```
-if(MobiComPushReceiver.isMobiComPushNotification(data)) {            
-        MobiComPushReceiver.processMessageAsync(this, data);               
-        return;          
-}                                          
-```
-
-
-
-
-#### Don't have Android Push Notification code ?
-
-To Enable Android Push Notification using Firebase Cloud Messaging (FCM) visit the [Firebase console](https://console.firebase.google.com) and create new project, add the google service json to your app, configure the build.gradle files in your app ,finally get server key from project settings and update in  
-***[Applozic Dashboard](https://console.applozic.com/settings/pushnotification) under Push Notification -> Android -> GCM/FCM Server Key.***
-
-
-In case, if you don't have the existing FCM related code, then copy the push notification related files from Applozic sample app to your project from the below github link
-
-[Github push notification code link](https://github.com/AppLozic/Applozic-Android-SDK/tree/master/app/src/main/java/com/applozic/mobicomkit/sample/pushnotification)
-
-
-And add below code in your androidmanifest.xml file
-
-``` 
-<service android:name="<CLASS_PACKAGE>.FcmListenerService"
-android:stopWithTask="false">
-        <intent-filter>
-            <action android:name="com.google.firebase.MESSAGING_EVENT" />
-        </intent-filter>
-</service>
-  ``` 
-#### Setup PushNotificationTask in UserLoginTask "onSuccess" (refer Step 3).
-
-```
-Applozic.registerForPushNotification(context, Applozic.getInstance(context).getDeviceRegistrationId(), new   AlPushNotificationHandler() {
-                @Override
-                public void onSuccess(RegistrationResponse registrationResponse) {
-                   
-                }
-
-                @Override
-                public void onFailure(RegistrationResponse registrationResponse, Exception exception) {
-
-                }
-    });
-```
-
-
-#### Step 5: For starting the messaging activity:        
-
-      
-```
-Intent intent = new Intent(this, ConversationActivity.class);            
-startActivity(intent);                               
-``` 
- 
- 
- For starting individual conversation thread, set "userId" in intent:        
- 
-           
-```
-Intent intent = new Intent(this, ConversationActivity.class);            
-intent.putExtra(ConversationUIService.USER_ID, "receiveruserid123");             
-intent.putExtra(ConversationUIService.DISPLAY_NAME, "Receiver display name"); //put it for displaying the title.  
-intent.putExtra(ConversationUIService.TAKE_ORDER,true); //Skip chat list for showing on back press 
-startActivity(intent);
-
-```
-
-#### Step 6: On logout, call the following:       
-
-
-
-```
-Applozic.logoutUser(context, new AlLogoutHandler() {
-                @Override
-                public void onSuccess(Context context) {
-                    
-                }
-
-                @Override
-                public void onFailure(Exception exception) {
-
-                }
-        });     
- ```
-
-
-**Trying out the demo app:**
-
-Open project in Android Studio to run the sample app in your device. Send messages between multiple devices. 
-
-
-Display name for users:
-You can either choose to handle display name from your app or have Applozic handle it.
-From your app's first activity, set the following to disable display name feature:
-ApplozicClient.getInstance(this).setHandleDisplayName(false);
-By default, the display name feature is enabled.
-
-
-### Documentation:
-For advanced options and customization, visit [Applozic Android Chat & Messaging SDK Documentation](https://www.applozic.com/docs/android-chat-sdk.html?utm_source=github&utm_medium=readme&utm_campaign=android)
-
-
-### Changelog
-[Changelog](https://github.com/AppLozic/Applozic-Android-SDK/blob/master/CHANGELOG.md)
-
-
-#### Features:
-
-
- One to one and Group Chat
- 
- Image capture
- 
- Photo sharing
- 
- File attachment
- 
- Location sharing
- 
- Push notifications
- 
- In-App notifications
- 
- Online presence
- 
- Last seen at 
- 
- Unread message count
- 
- Typing indicator
- 
- Message sent, Read Recipients and Delivery report
- 
- Offline messaging
- 
- User block / unblock
- 
- Multi Device sync
- 
- Application to user messaging
- 
- Customized chat bubble
- 
- UI Customization Toolkit
- 
- Cross Platform Support (iOS, Android & Web)
-
-
-### Sample source code to build messenger and chat app
-https://github.com/AppLozic/Applozic-Android-SDK/tree/master/app
-
-
-## Help
-
-We provide support over at [StackOverflow] (http://stackoverflow.com/questions/tagged/applozic) when you tag using applozic, ask us anything.
-
-Applozic is the best android chat sdk for instant messaging, still not convinced? Write to us at github@applozic.com and we will be happy to schedule a demo for you.
-
-
-### Free Android Chat SDK
-Special plans for startup and open source contributors, write to us at github@applozic.com 
-
-
-## Github projects
-
-Android Chat SDK https://github.com/AppLozic/Applozic-Android-SDK
-
-Web Chat Plugin https://github.com/AppLozic/Applozic-Web-Plugin
-
-iOS Chat SDK https://github.com/AppLozic/Applozic-iOS-SDK
+If you are facing any difficulties, you can contact us at support@applozic.com.

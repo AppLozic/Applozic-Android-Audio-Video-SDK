@@ -29,7 +29,9 @@ Without push notifications set-up, calls won't work. Please make sure they are s
 
 To add our Audio-Video Call SDK add the following dependency in your app-level build.gradle.
 
-`implementation 'com.applozic.communication.uiwidget:audiovideo:3.0.0'`
+```groovy
+implementation 'com.applozic.communication.uiwidget:audiovideo:3.0.0'
+```
 
 The Audio-Video Call SDK includes our messaging SDK. If you add a dependency to this SDK, you do not need to add the dependency for our Applozic Messaging SDK.
 
@@ -38,29 +40,34 @@ The Audio-Video Call SDK includes our messaging SDK. If you add a dependency to 
 
 Audio-video call functionality needs to be enabled for our users. Before you log-in users, add the audio and video call feature and set it for the user object as shown below:
 
-`List<String> featureList =  new ArrayList<>();
+```java
+List<String> featureList =  new ArrayList<>();
 featureList.add(User.Features.IP_AUDIO_CALL.getValue()); //To enable audio call
 featureList.add(User.Features.IP_VIDEO_CALL.getValue()); //To enable video call
-user.setFeatures(featureList);`
+user.setFeatures(featureList);
+```
 
 
 #### Add settings for audio/video activity handler:
 
 In the onSuccess function of UserLoginTask, add the following code:
 
-`ApplozicClient.getInstance(context).setHandleDial(true).setIPCallEnabled(true);`
+```java
+ApplozicClient.getInstance(context).setHandleDial(true).setIPCallEnabled(true);
 
-`Map<ApplozicSetting.RequestCode, String> activityCallbacks = new HashMap<ApplozicSetting.RequestCode, String>();
+Map<ApplozicSetting.RequestCode, String> activityCallbacks = new HashMap<ApplozicSetting.RequestCode, String>();
 activityCallbacks.put(ApplozicSetting.RequestCode.AUDIO_CALL, AudioCallActivityV2.class.getName());
-activityCallbacks.put(ApplozicSetting.RequestCode.VIDEO_CALL, VideoActivity.class.getName());`
+activityCallbacks.put(ApplozicSetting.RequestCode.VIDEO_CALL, VideoActivity.class.getName());
 
-`ApplozicSetting.getInstance(context).setActivityCallbacks(activityCallbacks);`
+ApplozicSetting.getInstance(context).setActivityCallbacks(activityCallbacks);
+```
 
 The above code will be used to identify the call activities for our Applozic Messaging SDK.
 
 
 #### Add the call activities in your AndroidManifest.xml:
 
+```xml
 <activity
        android:name="com.applozic.audiovideo.activity.AudioCallActivityV2"
        android:configChanges="keyboardHidden|orientation|screenSize"
@@ -81,15 +88,18 @@ The above code will be used to identify the call activities for our Applozic Mes
        android:configChanges="keyboardHidden|orientation|screenSize"              
        android:exported="true"
        android:theme="@style/Applozic_FullScreen_Theme"/>
+```
 
 
 #### ProGuard Setup
 
 If you are using ProGuard, add the following to your ProGuard configuration file:
 
+```
 -keep class org.webrtc.** { *; }
 -keep class com.twilio.video.** { *; }
 -keep class com.twilio.common.** { *; }
+```
 
 
 #### Congratulations

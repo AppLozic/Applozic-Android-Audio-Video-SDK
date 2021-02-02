@@ -62,12 +62,12 @@ public class Dialog {
 
     public static AlertDialog createCloseSessionDialog(DialogInterface.OnClickListener keepSession, DialogInterface.OnClickListener closeSessionListener, Context context) {
 
-        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(context);
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(context, R.style.AppCompatAlertDialogStyle);
 
-        alertDialogBuilder.setTitle("Close session ");
-        alertDialogBuilder.setMessage("Do you want to close your current session?");
-        alertDialogBuilder.setNegativeButton("Cancel", keepSession);
-        alertDialogBuilder.setPositiveButton("Close", closeSessionListener);
+        alertDialogBuilder.setTitle(context.getResources().getString(R.string.close_session));
+        alertDialogBuilder.setMessage(context.getResources().getString(R.string.question_for_closing_session));
+        alertDialogBuilder.setNegativeButton(context.getResources().getString(R.string.call_close_session_cancel), keepSession);
+        alertDialogBuilder.setPositiveButton(context.getResources().getString(R.string.call_close_session_close), closeSessionListener);
         alertDialogBuilder.setCancelable(false);
 
         return alertDialogBuilder.create();

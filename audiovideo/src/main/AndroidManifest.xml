@@ -1,9 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="applozic.com.audiovideo">
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <application>
     <activity android:name="com.applozic.audiovideo.activity.AudioCallActivityV2"
-        android:configChanges="keyboardHidden|orientation|screenSize"
+        android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
+        android:screenOrientation="portrait"
         android:exported="true"
         android:launchMode="singleTop"
         android:theme="@style/Applozic_FullScreen_Theme"/>
@@ -16,7 +18,8 @@
 
     <activity android:name="com.applozic.audiovideo.activity.VideoActivity"
         android:launchMode="singleTop"
-        android:configChanges="keyboardHidden|orientation|screenSize"
+        android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
+        android:screenOrientation="portrait"
         android:exported="true"
         android:theme="@style/Applozic_FullScreen_Theme">
     </activity>

@@ -1,8 +1,13 @@
 apply plugin: 'com.android.library'
 ext {
-    defaultCompileSdkVersion = 28
-    defaultTargetSdkVersion = 28
-    defaultSupportLibVersion = "28.0.0"
+    defaultCompileSdkVersion = 29
+    defaultTargetSdkVersion = 29
+    defaultGlideVersion = "4.11.0"
+    defaultFirebaseVersion = "21.0.1"
+    defaultGoogleMapsVersion = "17.0.0"
+    defaultLocationServicesVersion = "17.1.0"
+    defaultConstraintLayoutVersion = "2.0.4"
+    defaultCircleImageViewVersion = "3.1.0"
 }
 
 android {
@@ -13,7 +18,7 @@ android {
         minSdkVersion 16
         targetSdkVersion 28
         versionCode 7
-        versionName "2.1.1"
+        versionName "3.0.0"
     }
     buildTypes {
         release {
@@ -39,13 +44,13 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'com.google.android.material:material:1.0.0'
-    testApi 'junit:junit:4.12'
+    implementation 'com.google.android.material:material:1.2.1'
+    testApi 'junit:junit:4.13.1'
     implementation "com.twilio:video-android:5.13.0"
     //release
-    //api project(':mobicomkitui')
+    api 'com.applozic.communication.uiwidget:mobicomkitui:5.97'
     //development (changes for the SDK can be pushed to the dev branch of the public repo)
-    implementation 'com.github.AppLozic.Applozic-Android-SDK:mobicomkitui:dev-SNAPSHOT'
+    //implementation 'com.github.AppLozic.Applozic-Android-SDK:mobicomkitui:dev-SNAPSHOT'
 }
 /*
 
@@ -63,7 +68,7 @@ ext {
     artifact = 'audiovideo'
 
     libraryDescription = 'Applozic Communication Chat/Messaging library with audio/video support'
-    libraryVersion = '2.1.1'
+    libraryVersion = '3.0.0'
 
     developerId = 'devashish'
     developerName = 'Applozic'

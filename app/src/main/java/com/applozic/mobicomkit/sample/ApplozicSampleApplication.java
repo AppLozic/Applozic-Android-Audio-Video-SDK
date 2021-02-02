@@ -1,14 +1,9 @@
 package com.applozic.mobicomkit.sample;
 
 import android.content.Context;
-import android.os.StrictMode;
 
 import androidx.multidex.MultiDex;
 import androidx.multidex.MultiDexApplication;
-
-import com.crashlytics.android.Crashlytics;
-
-import io.fabric.sdk.android.Fabric;
 
 /**
  * Created by sunil on 21/3/16.
@@ -32,11 +27,6 @@ public class ApplozicSampleApplication extends MultiDexApplication {
                 .penaltyDeath()
                 .build());*/
 
-        try {
-            Fabric.with(this, new Crashlytics());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
@@ -44,5 +34,4 @@ public class ApplozicSampleApplication extends MultiDexApplication {
         super.attachBaseContext(base);
         MultiDex.install(this);
     }
-
 }

@@ -18,6 +18,7 @@ public class OneToOneCall {
         this.callId = callId;
         this.videoCall = videoCall;
         this.contactCalled = contactCalled;
+        this.participantId = contactCalled.getUserId();
         this.received = received;
     }
 

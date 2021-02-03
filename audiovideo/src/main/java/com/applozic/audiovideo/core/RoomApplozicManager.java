@@ -20,6 +20,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.applozic.audiovideo.listener.PostRoomEventsListener;
 import com.applozic.audiovideo.listener.PostRoomParticipantEventsListener;
 import com.applozic.audiovideo.model.OneToOneCall;
+import com.applozic.audiovideo.service.CallService;
 import com.applozic.mobicomkit.api.MobiComKitConstants;
 import com.applozic.mobicomkit.api.notification.VideoCallNotificationHelper;
 import com.applozic.mobicomkit.contact.AppContactService;
@@ -49,6 +50,13 @@ import applozic.com.audiovideo.R;
 import static com.twilio.video.Room.State.CONNECTED;
 import static com.twilio.video.Room.State.DISCONNECTED;
 
+/**
+ * For the management of a IP call (or a Twilio room [hence the name])
+ *
+ * <p>This class is reponsible for connnecting to, disconnecting from, managing etc. twilio rooms.
+ * Interaction with the UI elements is done using {@link PostRoomEventsListener} and {@link PostRoomParticipantEventsListener}.
+ * Data about a ongoing 1-to-1 call is stored using {@link OneToOneCall}.</p>
+ */
 public class RoomApplozicManager {
     public static final String TAG = "RoomManager";
     public static final long INCOMING_CALL_TIMEOUT = 30 * 1000L;
@@ -59,17 +67,18 @@ public class RoomApplozicManager {
     protected String accessToken;
     private int previousAudioMode;
     private boolean previousMicrophoneMute;
-    private boolean audioCallInForeground; //the call (audio) is in foreground
     private PostRoomEventsListener postRoomEventsListener;
     private PostRoomParticipantEventsListener postRoomParticipantEventsListener;
+    private final CallService.StopServiceCallback stopServiceCallback;
 
     protected Room room;
     protected LocalParticipant localParticipant;
     protected RemoteParticipant remoteParticipant;
-    protected VideoTrack remoteVideoTrack;
-    protected AudioTrack remoteAudioTrack;
     protected LocalAudioTrack localAudioTrack;
     protected LocalVideoTrack localVideoTrack;
+    protected VideoTrack remoteVideoTrack;
+    protected AudioTrack remoteAudioTrack;
+
     protected AudioManager audioManager;
     protected CameraCapturer cameraCapturer;
 
@@ -78,14 +87,15 @@ public class RoomApplozicManager {
     protected BroadcastReceiver applozicBroadCastReceiver;
     protected AppContactService contactService;
 
-    public RoomApplozicManager(Context context, boolean audioCallInForeground, String callId, String contactId, boolean videoCall, boolean received) {
+    public RoomApplozicManager(Context context, String callId, String contactId, boolean videoCall, boolean received, CallService.StopServiceCallback stopServiceCallback) {
         this.context = context;
         contactService = new AppContactService(context);
-        this.audioCallInForeground = audioCallInForeground;
         oneToOneCall = new OneToOneCall(callId, videoCall, contactService.getContactById(contactId), received);
         videoCallNotificationHelper = new VideoCallNotificationHelper(context, !videoCall);
+        this.stopServiceCallback = stopServiceCallback;
         localAudioTrack = createAndReturnLocalAudioTrack();
         localVideoTrack = createAndReturnLocalVideoTrack();
+
         try {
             cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
         } catch (IllegalStateException e) {
@@ -93,6 +103,7 @@ public class RoomApplozicManager {
             cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.BACK_CAMERA);
         }
         audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+
         initializeApplozicNotificationBroadcast();
     }
 
@@ -264,7 +275,6 @@ public class RoomApplozicManager {
             sendApplozicCallRequestAndConnectToRoom();
             oneToOneCall.setInviteSent(true);
         }
-
     }
 
     static IntentFilter BrodCastIntentFilters() {
@@ -473,7 +483,7 @@ public class RoomApplozicManager {
         return new Room.Listener() {
             @Override
             public void onConnected(@androidx.annotation.NonNull Room room) {
-                Log.d(TAG, "Connected to room.");
+                Log.d(TAG, "Connected to room: " + room.getName());
                 RoomApplozicManager.this.room = room;
                 localParticipant = room.getLocalParticipant();
                 for (RemoteParticipant participant : room.getRemoteParticipants()) {
@@ -512,11 +522,15 @@ public class RoomApplozicManager {
                         long diff = (System.currentTimeMillis() - oneToOneCall.getCallStartTime());
                         videoCallNotificationHelper.sendVideoCallEnd(getContactCalled(), getCallId(), String.valueOf(diff));
                     }
+                } catch (Exception exp) {
+                    exp.printStackTrace();
+                } finally {
                     if(postRoomEventsListener != null) {
                         postRoomEventsListener.afterRoomDisconnected(room);
                     }
-                } catch (Exception exp) {
-                    exp.printStackTrace();
+                    if(stopServiceCallback != null) {
+                        stopServiceCallback.stopService();
+                    }
                 }
             }
 

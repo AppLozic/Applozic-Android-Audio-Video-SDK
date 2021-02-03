@@ -1,8 +1,5 @@
 package com.applozic.audiovideo.service;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -17,22 +14,31 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.core.app.NotificationCompat;
 
 import com.applozic.audiovideo.activity.AudioCallActivityV2;
-import com.applozic.audiovideo.activity.VideoActivity;
 import com.applozic.audiovideo.authentication.MakeAsyncRequest;
 import com.applozic.audiovideo.authentication.Token;
 import com.applozic.audiovideo.authentication.TokenGeneratorCallback;
+import com.applozic.audiovideo.core.CallConstants;
 import com.applozic.audiovideo.core.RoomApplozicManager;
 import com.applozic.audiovideo.listener.AudioVideoUICallback;
 import com.applozic.audiovideo.listener.PostRoomEventsListener;
 import com.applozic.audiovideo.listener.PostRoomParticipantEventsListener;
 import com.applozic.mobicomkit.api.account.user.MobiComUserPreference;
+import com.applozic.mobicomkit.broadcast.BroadcastService;
 import com.applozic.mobicommons.json.GsonUtils;
 
 import applozic.com.audiovideo.R;
 
+/**
+ * The service that handles a 1-to-1 IP call
+ *
+ * <p>This service is started by {@link AudioCallActivityV2} and {@link com.applozic.audiovideo.activity.VideoActivity}
+ * which also serve as views for this. The aim of creating this service class is to keep the call logic independent from
+ * the visuals(view) of calling.</p>
+ *
+ * <p>The {@link RoomApplozicManager} class is where twilio calls are inititiated and managed.</p>
+ */
 public class CallService extends Service implements TokenGeneratorCallback {
     private static final String TAG = "CallService";
 
@@ -76,7 +82,14 @@ public class CallService extends Service implements TokenGeneratorCallback {
         asyncTask.execute((Void) null); //look for onNetworkComplete()
     }
 
+    public static void setCallServiceOngoing(boolean callServiceOngoing) {
+        BroadcastService.videoCallAcitivityOpend = callServiceOngoing;
+    }
+
     public void setupAndCall(RoomApplozicManager roomApplozicManager) {
+        roomApplozicManager.createAndReturnLocalAudioTrack();
+        roomApplozicManager.createAndReturnLocalVideoTrack();
+
         if(roomApplozicManager.isCallReceived()) {
             scheduleStopRinging();
         }
@@ -104,32 +117,22 @@ public class CallService extends Service implements TokenGeneratorCallback {
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        String callId = intent.getStringExtra("CONTACT_ID");
-        boolean received = intent.getBooleanExtra("INCOMING_CALL", Boolean.FALSE);
-        String userIdContactCalled = intent.getStringExtra("CALL_ID");
-        boolean videoCall = intent.getBooleanExtra("VIDEO_CALL", Boolean.FALSE);
-        roomApplozicManager = new RoomApplozicManager(this, true, callId, userIdContactCalled, videoCall, received);
-        roomApplozicManager.createAndReturnLocalAudioTrack();
-        roomApplozicManager.createAndReturnLocalVideoTrack();
+        setCallServiceOngoing(true);
+
+        String callId = intent.getStringExtra(CallConstants.CALL_ID);
+        boolean received = intent.getBooleanExtra(CallConstants.INCOMING_CALL, Boolean.FALSE);
+        String userIdContactCalled = intent.getStringExtra(CallConstants.CONTACT_ID);
+        boolean videoCall = intent.getBooleanExtra(CallConstants.VIDEO_CALL, Boolean.FALSE);
+        roomApplozicManager = new RoomApplozicManager(this, callId, userIdContactCalled, videoCall, received, () -> {
+            stopSelf();
+            stopForeground(true);
+        });
+
+        startForeground(CallNotificationService.CALL_ONGOING_NOTIFICATION_ID, new CallNotificationService(this).getOngoingCallNotification(videoCall, userIdContactCalled, callId, received));
+
         if(roomApplozicManager != null) {
             setupAndCall(roomApplozicManager);
         }
-        Intent notificationIntent;
-        if(videoCall) {
-            notificationIntent = new Intent(this, VideoActivity.class);
-        } else {
-            notificationIntent = new Intent(this, AudioCallActivityV2.class);
-        }
-        PendingIntent pendingIntent =
-                PendingIntent.getActivity(this, 0, notificationIntent, 0);
-
-        Notification notification = new NotificationCompat.Builder(this, NotificationChannel.DEFAULT_CHANNEL_ID)
-                .setContentTitle("Ongoing Call")
-                .setContentText(videoCall ? "Video Call" : "Audio Call")
-                .setContentIntent(pendingIntent)
-                .build();
-
-        startForeground(5, notification);
         return START_NOT_STICKY;
     }
 
@@ -143,6 +146,8 @@ public class CallService extends Service implements TokenGeneratorCallback {
         roomApplozicManager.disconnectRoom();
         roomApplozicManager.releaseAudioVideoTracks();
         roomApplozicManager.unregisterApplozicBroadcastReceiver();
+
+        setCallServiceOngoing(false);
     }
 
     @Override
@@ -152,7 +157,6 @@ public class CallService extends Service implements TokenGeneratorCallback {
             Log.i(TAG, "Not able to get token.");
             return;
         }
-
         Token token = (Token) GsonUtils.getObjectFromJson(response, Token.class);
         MobiComUserPreference.getInstance(this).setVideoCallToken(token.getToken());
         scheduleStopRinging();
@@ -194,5 +198,14 @@ public class CallService extends Service implements TokenGeneratorCallback {
         public CallService getCallService() {
             return CallService.this;
         }
+    }
+
+    /**
+     * Callback for stopping service
+     *
+     * <p>Required when interaction with a UI widget or external event needs to stop the service.</p>
+     */
+    public interface StopServiceCallback {
+        void stopService();
     }
 }

@@ -16,7 +16,6 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.CountDownTimer;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -68,7 +67,7 @@ import static com.twilio.video.Room.State.CONNECTED;
  *
  * <p>This activity and the sub-class {@link VideoActivity} communicates with the
  * {@link CallService} through three callbacks:
- * 1. {@link AudioCallActivityV2#postRomParticipantEventsListener}
+ * 1. {@link AudioCallActivityV2#postRoomParticipantEventsListener}
  * 2. {@link AudioCallActivityV2#postRoomEventsListener}
  * 3. {@link AudioCallActivityV2#audioVideoUICallback}</p>
  *
@@ -99,7 +98,6 @@ public class AudioCallActivityV2 extends AppCompatActivity {
     protected TextView callTimerText;
     protected AlertDialog alertDialog;
 
-    private int timerTickCount;
     protected boolean videoCall = false;
     protected String userIdContactCalled;
     protected Contact contactCalled;
@@ -110,8 +108,6 @@ public class AudioCallActivityV2 extends AppCompatActivity {
 
     protected AppContactService contactService;
     protected CallService callService;
-
-    protected CountDownTimer timer;
 
     public AudioCallActivityV2() {
         this.videoCall = false;
@@ -154,7 +150,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         }
     };
 
-    final private PostRoomParticipantEventsListener postRomParticipantEventsListener = new PostRoomParticipantEventsListener() {
+    final private PostRoomParticipantEventsListener postRoomParticipantEventsListener = new PostRoomParticipantEventsListener() {
         @Override
         public void afterVideoTrackSubscribed(RemoteVideoTrack videoTrack) {
             addRemoteParticipantVideo(videoTrack);
@@ -198,8 +194,34 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         public void connectingCall(String callId, boolean isReceived) { }
     };
 
-    protected void init() {
-        Intent intent = getIntent();
+    final private CallService.CallDurationTickCallback callDurationTickCallback = new CallService.CallDurationTickCallback() {
+        @SuppressLint("DefaultLocale")
+        @Override
+        public void onTick(int timeInSeconds) {
+            int seconds = (timeInSeconds);
+            int hrs = seconds / (60 * 60);
+            int minutes = seconds / 60;
+            seconds = seconds % 60;
+            if(callTimerText != null) {
+                callTimerText.setText(String.format("%d:%02d:%02d", hrs, minutes, seconds));
+            }
+        }
+    };
+
+    public void finishActivityIfInternetNotAvailable() {
+        if (!Utils.isInternetAvailable(this)) {
+            Toast toast = Toast.makeText(this, getString(R.string.internet_connection_not_available), Toast.LENGTH_SHORT);
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.show();
+            finish();
+        }
+    }
+
+    protected void initCallDataFrom(Intent intent) {
+        if(intent == null) {
+            Log.d(TAG, "Intent is null.");
+            return;
+        }
 
         userIdContactCalled = intent.getStringExtra(CallConstants.CONTACT_ID);
         received = intent.getBooleanExtra(CallConstants.INCOMING_CALL, Boolean.FALSE);
@@ -215,36 +237,68 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         contactCalled = contactService.getContactById(userIdContactCalled);
     }
 
+    protected void updateCallDataFrom(RoomApplozicManager roomApplozicManager) {
+        if(roomApplozicManager == null) {
+            Log.d(TAG, "RoomApplozicManager object is null.");
+            return;
+        }
+
+        userIdContactCalled = roomApplozicManager.getContactCalled().getUserId();
+        received = roomApplozicManager.isCallReceived();
+        callId = roomApplozicManager.getCallId();
+        contactCalled = roomApplozicManager.getContactCalled();
+    }
+
+    protected void bindCallServiceWithActivity() {
+        Intent intent = new Intent(this, CallService.class);
+        bindService(intent, new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                Log.d(TAG, "Call Service Connected.");
+                CallService.AudioVideoCallBinder audioVideoCallBinder = (CallService.AudioVideoCallBinder) service;
+                callService = audioVideoCallBinder.getCallService();
+                if(callService != null) {
+                    if(callService.getRoomApplozicManager() != null) {
+                        Log.d(TAG, "Call Service attached to Audio Call Activity: " + callService.getRoomApplozicManager().getOneToOneCall().getCallId());
+                    } else {
+                        Toast.makeText(AudioCallActivityV2.this, "Call not valid.", Toast.LENGTH_SHORT).show();
+                        AudioCallActivityV2.this.finish();
+                    }
+
+                    callService.setAudioVideoUICallback(audioVideoUICallback);
+                    callService.setPostRoomParticipantEventsListener(postRoomParticipantEventsListener);
+                    callService.setPostRoomEventsListener(postRoomEventsListener);
+                    callService.setCallDurationTickCallback(callDurationTickCallback);
+
+                    RoomApplozicManager roomApplozicManager = callService.getRoomApplozicManager();
+                    if(checkPermissionForCameraAndMicrophone() && videoCall) {
+                        roomApplozicManager.publishLocalVideoTrack();
+                    }
+                    updateCallDataFrom(roomApplozicManager);
+                    initializeUI(roomApplozicManager);
+                }
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                unBindWithService();
+            }
+        }, Context.BIND_AUTO_CREATE);
+    }
+
     protected void unBindWithService() {
         if(callService != null) {
             callService.setAudioVideoUICallback(null);
             callService.setPostRoomParticipantEventsListener(null);
             callService.setPostRoomEventsListener(null);
+            callService.setCallDurationTickCallback(null);
         }
         callService = null;
     }
 
-    protected void setupAndStartCallService() {
-        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
-
-        if (!Utils.isInternetAvailable(this)) {
-            Toast toast = Toast.makeText(this, getString(R.string.internet_connection_not_available), Toast.LENGTH_SHORT);
-            toast.setGravity(Gravity.CENTER, 0, 0);
-            toast.show();
-            finish();
-            return;
-        }
-
-        Intent intent = new Intent(this, CallService.class);
-
-        mediaPlayer = MediaPlayer.create(this, R.raw.hangouts_video_call);
-        mediaPlayer.setLooping(true);
-
-        if (activityStartedFromNotification || callServiceIsRunningInForeground(this)) {
-            timer = initializeTimer();
-        } else {
-            timer = initializeTimer();
-
+    protected void startAndOrBindCallService(boolean callServiceAlreadyRunning) {
+        if (!callServiceAlreadyRunning) {
+            Intent intent = new Intent(this, CallService.class);
             intent.putExtra(CallConstants.CONTACT_ID, userIdContactCalled);
             intent.putExtra(CallConstants.CALL_ID, callId);
             intent.putExtra(CallConstants.INCOMING_CALL, received);
@@ -268,32 +322,29 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             }
         }
 
-        bindService(intent, new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                Log.d(TAG, "Call Service Connected.");
-                CallService.AudioVideoCallBinder audioVideoCallBinder = (CallService.AudioVideoCallBinder) service;
-                callService = audioVideoCallBinder.getCallService();
-                if(callService != null) {
-                    Log.d(TAG, "Call Service attached to Audio Call Activity: " + callService.getRoomApplozicManager().getOneToOneCall().getCallId());
-                    callService.setAudioVideoUICallback(audioVideoUICallback);
-                    callService.setPostRoomParticipantEventsListener(postRomParticipantEventsListener);
-                    callService.setPostRoomEventsListener(postRoomEventsListener);
-                    initializeUI(callService.getRoomApplozicManager());
-                }
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                unBindWithService();
-            }
-        }, Context.BIND_AUTO_CREATE);
+        bindCallServiceWithActivity();
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        init();
+        initCallDataFrom(getIntent());
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+
+        /*
+         * Needed for setting/abandoning audio focus during call
+         */
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
+
+        //ringtone for incoming/received call
+        mediaPlayer = MediaPlayer.create(this, R.raw.hangouts_video_call);
+        mediaPlayer.setLooping(true);
+
+        finishActivityIfInternetNotAvailable();
 
         if (videoCall) {
             Utils.printLog(this, TAG, "This is a video call. Returning.");
@@ -302,28 +353,9 @@ public class AudioCallActivityV2 extends AppCompatActivity {
 
         setContentView(R.layout.applozic_audio_call);
 
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-
         contactName = (TextView) findViewById(R.id.contact_name);
         profileImage = (ImageView) findViewById(R.id.applozic_audio_profile_image);
         callTimerText = (TextView) findViewById(R.id.applozic_audio_timer);
-
-        if(contactCalled != null) {
-            contactName.setText(contactCalled.getDisplayName());
-
-            imageLoader = new ImageLoader(this, profileImage.getHeight()) {
-                @Override
-                protected Bitmap processBitmap(Object data) {
-                    return contactService.downloadContactImage(AudioCallActivityV2.this, (Contact) data);
-                }
-            };
-            imageLoader.setLoadingImage(R.drawable.applozic_ic_contact_picture_holo_light);
-            // Add a cache to the image loader
-            imageLoader.setImageFadeIn(false);
-            imageLoader.loadImage(contactCalled, profileImage);
-        }
 
         primaryVideoView = (VideoView) findViewById(R.id.primary_video_view);
         thumbnailVideoView = (VideoView) findViewById(R.id.thumbnail_video_view);
@@ -333,17 +365,12 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         speakerActionFab = (FloatingActionButton) findViewById(R.id.speaker_action_fab);
 
         /*
-         * Needed for setting/abandoning audio focus during call
-         */
-        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-
-        /*
          * Check camera and microphone permissions. Needed in Android M.
          */
         if (!checkPermissionForCameraAndMicrophone()) {
             requestPermissionForCameraAndMicrophone();
         } else {
-            setupAndStartCallService();
+            startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this));
         }
     }
 
@@ -381,7 +408,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             }
 
             if (cameraAndMicPermissionGranted) {
-                setupAndStartCallService();
+                startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this));
             } else {
                 Toast.makeText(this,
                         R.string.permissions_needed,
@@ -393,33 +420,10 @@ public class AudioCallActivityV2 extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        /*
-         * If the local video track was released when the app was put in the background, recreate.
-         */
-        try {
-            if(callService == null) {
-                return;
-            }
-            RoomApplozicManager roomApplozicManager = callService.getRoomApplozicManager();
-            LocalVideoTrack localVideoTrack = roomApplozicManager.getLocalVideoTrack();
-            if (videoCall) {
-                if (localVideoTrack == null && checkPermissionForCameraAndMicrophone()) {
-                    localVideoTrack = roomApplozicManager.createAndReturnLocalVideoTrack();
-                    localVideoTrack.addRenderer(localVideoView);
-                    roomApplozicManager.publishLocalVideoTrack();
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
     protected void onPause() {
-        if(callService == null) {
-            return;
-        }
-        callService.getRoomApplozicManager().unPublishLocalVideoTrack();
         super.onPause();
     }
 
@@ -434,7 +438,54 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         unBindWithService();
     }
 
+    protected void initializeUIForVideoCall(RoomApplozicManager roomApplozicManager) {
+        if (roomApplozicManager == null) {
+            return;
+        }
+        if (videoCall) {
+            roomApplozicManager.getLocalVideoTrack().addRenderer(primaryVideoView);
+            localVideoView = primaryVideoView;
+            primaryVideoView.setMirror(true);
+
+            Room room = roomApplozicManager.getRoom();
+            if (room != null) {
+                for (RemoteParticipant remoteParticipant : room.getRemoteParticipants()) {
+                    RemoteVideoTrack remoteVideoTrack = remoteParticipant.getRemoteVideoTracks().get(0).getRemoteVideoTrack();
+                    if (remoteVideoTrack == null) {
+                        return;
+                    }
+                    addRemoteParticipantVideo(remoteVideoTrack);
+                    break; //only one participant UI allowed (1-to-1 call)
+                }
+            }
+        }
+    }
+
     protected void initializeUI(RoomApplozicManager roomApplozicManager) {
+        if(contactCalled != null) {
+            contactName.setText(contactCalled.getDisplayName());
+
+            if(imageLoader != null) { //will be null for video call (VideoActivity)
+                imageLoader = new ImageLoader(this, profileImage.getHeight()) {
+                    @Override
+                    protected Bitmap processBitmap(Object data) {
+                        return contactService.downloadContactImage(AudioCallActivityV2.this, (Contact) data);
+                    }
+                };
+                imageLoader.setLoadingImage(R.drawable.applozic_ic_contact_picture_holo_light);
+                // Add a cache to the image loader
+                imageLoader.setImageFadeIn(false);
+                imageLoader.loadImage(contactCalled, profileImage);
+            }
+        }
+
+        if (roomApplozicManager == null) {
+            Log.d(TAG, "RoomApplozicManager object is null.");
+            return;
+        }
+
+        initializeUIForVideoCall(roomApplozicManager);
+
         connectActionFab.setImageDrawable(ContextCompat.getDrawable(this,
                 R.drawable.ic_call_end_white_24px));
         connectActionFab.show();
@@ -444,14 +495,18 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             switchCameraActionFab.setOnClickListener(switchCameraClickListener(roomApplozicManager.getCameraCapturer()));
             localVideoActionFab.show();
             localVideoActionFab.setOnClickListener(localVideoPauseClickListener(roomApplozicManager.getLocalVideoTrack()));
-
-            roomApplozicManager.getLocalVideoTrack().addRenderer(primaryVideoView);
-            localVideoView = primaryVideoView;
-            primaryVideoView.setMirror(true);
         }
         muteActionFab.show();
         muteActionFab.setOnClickListener(muteClickListener(roomApplozicManager.getLocalAudioTrack()));
         speakerActionFab.setOnClickListener(speakerClickListener());
+
+        if (callService != null) {
+            toggleSpeakerOnOffUI(callService.getCallUIState().isLoudspeakerOn());
+            toggleAudioMuteUI(callService.getCallUIState().isLocalAudioEnabled());
+            if(videoCall) {
+                toggleCameraPauseUI(callService.getCallUIState().isLocalVideoEnabled());
+            }
+        }
     }
 
     /*
@@ -530,6 +585,9 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                     roomApplozicManager.getOneToOneCall().setInviteSent(false);
                     roomApplozicManager.sendApplozicMissedCallNotification();
                 }
+                if(roomApplozicManager.getStopServiceCallback() != null) {
+                    roomApplozicManager.getStopServiceCallback().stopService();
+                }
                 disconnectAndExit(roomApplozicManager);
             }
         };
@@ -541,6 +599,26 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         } else {
             finish();
         }
+    }
+
+    protected void toggleCameraPauseUI(boolean enable) {
+        int icon;
+        if (enable) {
+            icon = R.drawable.ic_videocam_green_24px;
+            switchCameraActionFab.show();
+        } else {
+            icon = R.drawable.ic_videocam_off_red_24px;
+            switchCameraActionFab.hide();
+        }
+        localVideoActionFab.setImageDrawable(
+                ContextCompat.getDrawable(AudioCallActivityV2.this, icon));
+    }
+
+    protected void toggleAudioMuteUI(boolean enable) {
+        int icon = enable ?
+                R.drawable.ic_mic_green_24px : R.drawable.ic_mic_off_red_24px;
+        muteActionFab.setImageDrawable(ContextCompat.getDrawable(
+                AudioCallActivityV2.this, icon));
     }
 
     private View.OnClickListener switchCameraClickListener(CameraCapturer cameraCapturer) {
@@ -571,16 +649,10 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                 if (localVideoTrack != null) {
                     boolean enable = !localVideoTrack.isEnabled();
                     localVideoTrack.enable(enable);
-                    int icon;
-                    if (enable) {
-                        icon = R.drawable.ic_videocam_green_24px;
-                        switchCameraActionFab.show();
-                    } else {
-                        icon = R.drawable.ic_videocam_off_red_24px;
-                        switchCameraActionFab.hide();
+                    toggleCameraPauseUI(enable);
+                    if(callService != null) {
+                        callService.getCallUIState().setLocalVideoEnabled(enable);
                     }
-                    localVideoActionFab.setImageDrawable(
-                            ContextCompat.getDrawable(AudioCallActivityV2.this, icon));
                 }
             }
         };
@@ -596,31 +668,12 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                 if (localAudioTrack != null) {
                     boolean enable = !localAudioTrack.isEnabled();
                     localAudioTrack.enable(enable);
-                    int icon = enable ?
-                            R.drawable.ic_mic_green_24px : R.drawable.ic_mic_off_red_24px;
-                    muteActionFab.setImageDrawable(ContextCompat.getDrawable(
-                            AudioCallActivityV2.this, icon));
+                    toggleAudioMuteUI(enable);
+                    if(callService != null) {
+                        callService.getCallUIState().setLocalAudioEnabled(enable);
+                    }
                 }
             }
-        };
-    }
-
-    @NonNull
-    public CountDownTimer initializeTimer() {
-        return new CountDownTimer(Long.MAX_VALUE, 1000) {
-            @SuppressLint("DefaultLocale")
-            @Override
-            public void onTick(long millisUntilFinished) {
-                timerTickCount++;
-                int seconds = (timerTickCount);
-                int hrs = seconds / (60 * 60);
-                int minutes = seconds / 60;
-                seconds = seconds % 60;
-                callTimerText.setText(String.format("%d:%02d:%02d", hrs, minutes, seconds));
-            }
-
-            @Override
-            public void onFinish() { }
         };
     }
 
@@ -672,9 +725,26 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         return new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                setSpeakerphoneOn(!audioManager.isSpeakerphoneOn());
+                boolean onOrOff = !audioManager.isSpeakerphoneOn();
+                setSpeakerphoneOn(onOrOff);
+                if(callService != null) {
+                    callService.getCallUIState().setLoudspeakerOn(onOrOff);
+                }
             }
         };
+    }
+
+    protected void toggleSpeakerOnOffUI(boolean onOrOff) {
+        Drawable drawable;
+        if (onOrOff) {
+            drawable = ContextCompat.getDrawable(this,
+                    R.drawable.ic_volume_down_green_24px);
+        } else {
+            // route back to headset
+            drawable = ContextCompat.getDrawable(this,
+                    R.drawable.ic_volume_down_white_24px);
+        }
+        speakerActionFab.setImageDrawable(drawable);
     }
 
     protected void setSpeakerphoneOn(boolean onOrOff) {
@@ -685,16 +755,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        if (onOrOff) {
-            Drawable drawable = ContextCompat.getDrawable(this,
-                    R.drawable.ic_volume_down_green_24px);
-            speakerActionFab.setImageDrawable(drawable);
-        } else {
-            // route back to headset
-            Drawable drawable = ContextCompat.getDrawable(this,
-                    R.drawable.ic_volume_down_white_24px);
-            speakerActionFab.setImageDrawable(drawable);
-        }
+        toggleSpeakerOnOffUI(onOrOff);
     }
 
     public void afterRoomConnected(Room room) {
@@ -714,16 +775,10 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                 return;
             }
             hideProgress();
-            if (!videoCall && timer != null) {
-                timer.start();
-            }
         }
     }
 
     public void afterRoomDisconnected(Room room) {
-        if (!videoCall && timer != null) {
-            timer.cancel();
-        }
         if (mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
         }
@@ -754,9 +809,6 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             return;
         }
         hideProgress();
-        if (!videoCall && timer != null) {
-            timer.start();
-        }
     }
 
     public void afterParticipantDisconnected(RemoteParticipant remoteParticipant) {

@@ -24,6 +24,7 @@ import com.applozic.audiovideo.core.RoomApplozicManager;
 import com.applozic.audiovideo.listener.AudioVideoUICallback;
 import com.applozic.audiovideo.listener.PostRoomEventsListener;
 import com.applozic.audiovideo.listener.PostRoomParticipantEventsListener;
+import com.applozic.audiovideo.model.CallUIState;
 import com.applozic.mobicomkit.api.account.user.MobiComUserPreference;
 import com.applozic.mobicomkit.broadcast.BroadcastService;
 import com.applozic.mobicommons.json.GsonUtils;
@@ -37,13 +38,25 @@ import applozic.com.audiovideo.R;
  * which also serve as views for this. The aim of creating this service class is to keep the call logic independent from
  * the visuals(view) of calling.</p>
  *
- * <p>The {@link RoomApplozicManager} class is where twilio calls are inititiated and managed.</p>
+ * <p>The {@link RoomApplozicManager} class is where Twilio calls are initiated and managed.</p>
  */
 public class CallService extends Service implements TokenGeneratorCallback {
     private static final String TAG = "CallService";
 
     private RoomApplozicManager roomApplozicManager;
     private AudioVideoUICallback audioVideoUICallback;
+    private CallUIState callUIState;
+
+    public CallUIState getCallUIState() {
+        if (callUIState == null) {
+            callUIState = new CallUIState();
+        }
+        return callUIState;
+    }
+
+    public void setCallUIState(boolean loudspeakerOn, boolean localAudioEnabled, boolean localVideoEnabled) {
+
+    }
 
     private final IBinder binder = new AudioVideoCallBinder();
 
@@ -61,6 +74,12 @@ public class CallService extends Service implements TokenGeneratorCallback {
 
     public void setAudioVideoUICallback(AudioVideoUICallback audioVideoUICallback) {
         this.audioVideoUICallback = audioVideoUICallback;
+    }
+
+    public void setCallDurationTickCallback(CallDurationTickCallback callDurationTickCallback) {
+        if(roomApplozicManager != null) {
+            roomApplozicManager.setCallDurationTickCallback(callDurationTickCallback);
+        }
     }
 
     public RoomApplozicManager getRoomApplozicManager() {
@@ -89,6 +108,12 @@ public class CallService extends Service implements TokenGeneratorCallback {
     public void setupAndCall(RoomApplozicManager roomApplozicManager) {
         roomApplozicManager.createAndReturnLocalAudioTrack();
         roomApplozicManager.createAndReturnLocalVideoTrack();
+
+        //for the call UI
+        callUIState = getCallUIState();
+        callUIState.setLocalAudioEnabled(true);
+        callUIState.setLocalVideoEnabled(true);
+        callUIState.setLoudspeakerOn(roomApplozicManager.isVideoCall());
 
         if(roomApplozicManager.isCallReceived()) {
             scheduleStopRinging();
@@ -207,5 +232,14 @@ public class CallService extends Service implements TokenGeneratorCallback {
      */
     public interface StopServiceCallback {
         void stopService();
+    }
+
+    /**
+     * Callback that fires {@link CallDurationTickCallback#onTick(int)} for each tick(second)
+     *
+     * <p>Required for displaying call timer in UI</p>
+     */
+    public interface CallDurationTickCallback {
+        void onTick(int timeInSeconds);
     }
 }

@@ -8,11 +8,11 @@ import android.os.Bundle;
 import androidx.core.content.ContextCompat;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.applozic.audiovideo.core.RoomApplozicManager;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.twilio.video.CameraCapturer;
 import com.twilio.video.LocalVideoTrack;
@@ -36,12 +36,9 @@ public class VideoActivity extends AudioCallActivityV2 {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        init();
+        initCallDataFrom(getIntent());
 
         setContentView(R.layout.activity_conversation);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
 
         contactName = (TextView) findViewById(R.id.contact_name);
         callTimerText = (TextView) findViewById(R.id.applozic_audio_timer);
@@ -70,22 +67,12 @@ public class VideoActivity extends AudioCallActivityV2 {
         });
 
         /*
-         * Enable changing the volume using the up/down keys during a conversation
-         */
-        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
-
-        /*
-         * Needed for setting/abandoning audio focus during call
-         */
-        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-
-        /*
          * Check camera and microphone permissions. Needed in Android M.
          */
         if (!checkPermissionForCameraAndMicrophone()) {
             requestPermissionForCameraAndMicrophone();
         } else {
-            setupAndStartCallService();
+            startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this));
         }
 
     }
@@ -121,11 +108,36 @@ public class VideoActivity extends AudioCallActivityV2 {
     @Override
     protected void onResume() {
         super.onResume();
+        /*
+         * If the local video track was released when the app was put in the background, recreate.
+         */
+        try {
+            if (callService == null) {
+                return;
+            }
+            RoomApplozicManager roomApplozicManager = callService.getRoomApplozicManager();
+            LocalVideoTrack localVideoTrack = roomApplozicManager.getLocalVideoTrack();
+            if (videoCall) {
+                if (checkPermissionForCameraAndMicrophone()) {
+                    if (localVideoTrack == null) {
+                        localVideoTrack = roomApplozicManager.createAndReturnLocalVideoTrack();
+                    }
+                    localVideoTrack.addRenderer(localVideoView);
+                    roomApplozicManager.publishLocalVideoTrack();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onPause() {
         super.onPause();
+        if(callService == null || callService.getRoomApplozicManager() == null) {
+            return;
+        }
+        callService.getRoomApplozicManager().unPublishLocalVideoTrack();
     }
 
     @Override

@@ -10,6 +10,7 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
+import android.os.CountDownTimer;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
@@ -53,7 +54,7 @@ import static com.twilio.video.Room.State.DISCONNECTED;
 /**
  * For the management of a IP call (or a Twilio room [hence the name])
  *
- * <p>This class is reponsible for connnecting to, disconnecting from, managing etc. twilio rooms.
+ * <p>This class is responsible for connecting to, disconnecting from, managing etc. twilio rooms.
  * Interaction with the UI elements is done using {@link PostRoomEventsListener} and {@link PostRoomParticipantEventsListener}.
  * Data about a ongoing 1-to-1 call is stored using {@link OneToOneCall}.</p>
  */
@@ -67,9 +68,11 @@ public class RoomApplozicManager {
     protected String accessToken;
     private int previousAudioMode;
     private boolean previousMicrophoneMute;
+    private int callDurationTickInSeconds;
     private PostRoomEventsListener postRoomEventsListener;
     private PostRoomParticipantEventsListener postRoomParticipantEventsListener;
     private final CallService.StopServiceCallback stopServiceCallback;
+    private CallService.CallDurationTickCallback callDurationTickCallback;
 
     protected Room room;
     protected LocalParticipant localParticipant;
@@ -81,11 +84,27 @@ public class RoomApplozicManager {
 
     protected AudioManager audioManager;
     protected CameraCapturer cameraCapturer;
+    protected CountDownTimer callTimer; //TODO: make call timer its separate class, with support for single start (in case group call)
 
     protected VideoCallNotificationHelper videoCallNotificationHelper;
     protected OneToOneCall oneToOneCall;
     protected BroadcastReceiver applozicBroadCastReceiver;
     protected AppContactService contactService;
+
+    private void initializeCallTimer() {
+        callTimer = new CountDownTimer(Long.MAX_VALUE, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                callDurationTickInSeconds++;
+                if(callDurationTickCallback != null) {
+                    callDurationTickCallback.onTick(callDurationTickInSeconds);
+                }
+            }
+
+            @Override
+            public void onFinish() { }
+        };
+    }
 
     public RoomApplozicManager(Context context, String callId, String contactId, boolean videoCall, boolean received, CallService.StopServiceCallback stopServiceCallback) {
         this.context = context;
@@ -95,6 +114,7 @@ public class RoomApplozicManager {
         this.stopServiceCallback = stopServiceCallback;
         localAudioTrack = createAndReturnLocalAudioTrack();
         localVideoTrack = createAndReturnLocalVideoTrack();
+        callDurationTickInSeconds = 0;
 
         try {
             cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
@@ -104,6 +124,7 @@ public class RoomApplozicManager {
         }
         audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
 
+        initializeCallTimer();
         initializeApplozicNotificationBroadcast();
     }
 
@@ -148,10 +169,16 @@ public class RoomApplozicManager {
     }
 
     public LocalVideoTrack getLocalVideoTrack() {
+        if(localVideoTrack == null) {
+            return createAndReturnLocalVideoTrack();
+        }
         return localVideoTrack;
     }
 
     public LocalAudioTrack getLocalAudioTrack() {
+        if(localAudioTrack == null) {
+            return createAndReturnLocalAudioTrack();
+        }
         return localAudioTrack;
     }
 
@@ -171,12 +198,32 @@ public class RoomApplozicManager {
         return remoteParticipant;
     }
 
+    public CallService.StopServiceCallback getStopServiceCallback() {
+        return stopServiceCallback;
+    }
+
     public CameraCapturer getCameraCapturer() {
+        if(cameraCapturer == null) {
+            try {
+                cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
+            } catch (IllegalStateException e) {
+                Utils.printLog(context, TAG, "Front camera not found on device, using back camera..");
+                cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.BACK_CAMERA);
+            }
+        }
         return cameraCapturer;
     }
 
     public Room getRoom() {
         return room;
+    }
+
+    public int getCallDurationTickInSeconds() {
+        return callDurationTickInSeconds;
+    }
+
+    public void setCallDurationTickCallback(CallService.CallDurationTickCallback callDurationTickCallback) {
+        this.callDurationTickCallback = callDurationTickCallback;
     }
 
     public boolean isCallReceived() {
@@ -196,8 +243,16 @@ public class RoomApplozicManager {
     }
 
     public void publishLocalVideoTrack() {
+        localVideoTrack = getLocalVideoTrack();
+        if (localParticipant == null) {
+           if (room != null) {
+              localParticipant = room.getLocalParticipant();
+           }
+        }
         if (localParticipant != null && localVideoTrack != null) {
             localParticipant.publishTrack(localVideoTrack);
+        } else {
+            Log.d(TAG, "Local participant or local video track is null. Failed to publish local video.");
         }
     }
 
@@ -493,6 +548,9 @@ public class RoomApplozicManager {
                     }
                     break;
                 }
+                if (oneToOneCall != null && oneToOneCall.isReceived() && callTimer != null) {
+                    callTimer.start();
+                }
             }
 
             @Override
@@ -531,6 +589,10 @@ public class RoomApplozicManager {
                     if(stopServiceCallback != null) {
                         stopServiceCallback.stopService();
                     }
+                    if (callTimer != null) {
+                        callTimer.cancel();
+                        callDurationTickInSeconds = 0;
+                    }
                 }
             }
 
@@ -543,6 +605,9 @@ public class RoomApplozicManager {
                 }
                 if(postRoomEventsListener != null) {
                     postRoomEventsListener.afterParticipantConnected(remoteParticipant);
+                }
+                if (callTimer != null) {
+                    callTimer.start();
                 }
             }
 

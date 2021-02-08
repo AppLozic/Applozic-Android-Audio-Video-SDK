@@ -107,7 +107,7 @@ public class CallService extends Service implements TokenGeneratorCallback {
 
     public void setupAndCall(RoomApplozicManager roomApplozicManager) {
         roomApplozicManager.createAndReturnLocalAudioTrack();
-        roomApplozicManager.createAndReturnLocalVideoTrack();
+        roomApplozicManager.getLocalVideoTrack();
 
         //for the call UI
         callUIState = getCallUIState();

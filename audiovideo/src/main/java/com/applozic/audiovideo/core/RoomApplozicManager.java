@@ -113,15 +113,10 @@ public class RoomApplozicManager {
         videoCallNotificationHelper = new VideoCallNotificationHelper(context, !videoCall);
         this.stopServiceCallback = stopServiceCallback;
         localAudioTrack = createAndReturnLocalAudioTrack();
-        localVideoTrack = createAndReturnLocalVideoTrack();
+        localVideoTrack = getLocalVideoTrack();
         callDurationTickInSeconds = 0;
 
-        try {
-            cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
-        } catch (IllegalStateException e) {
-            Utils.printLog(context, TAG, "Front camera not found on device, using back camera..");
-            cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.BACK_CAMERA);
-        }
+        cameraCapturer = getCameraCapturer();
         audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
 
         initializeCallTimer();
@@ -170,7 +165,7 @@ public class RoomApplozicManager {
 
     public LocalVideoTrack getLocalVideoTrack() {
         if(localVideoTrack == null) {
-            return createAndReturnLocalVideoTrack();
+            localVideoTrack = LocalVideoTrack.create(context, true, getCameraCapturer(), LOCAL_VIDEO_TRACK_NAME);
         }
         return localVideoTrack;
     }
@@ -412,22 +407,6 @@ public class RoomApplozicManager {
         return localAudioTrack;
     }
 
-    public LocalVideoTrack createAndReturnLocalVideoTrack() {
-        if(localVideoTrack != null) {
-            return localVideoTrack;
-        }
-        if(cameraCapturer == null) {
-            try {
-                cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.FRONT_CAMERA);
-            } catch (IllegalStateException e) {
-                Utils.printLog(context, TAG, "Front camera not found on device, using back camera..");
-                cameraCapturer = new CameraCapturer(context, CameraCapturer.CameraSource.BACK_CAMERA);
-            }
-        }
-        localVideoTrack = LocalVideoTrack.create(context, true, cameraCapturer, LOCAL_VIDEO_TRACK_NAME);
-        return localVideoTrack;
-    }
-
     @SuppressLint("SetTextI18n")
     private void addRemoteParticipant(RemoteParticipant remoteParticipant) {
         videoCallNotificationHelper.sendVideoCallAnswer(getContactCalled(), getCallId());
@@ -501,7 +480,7 @@ public class RoomApplozicManager {
             }
 
             if (localVideoTrack != null) {
-                connectOptionsBuilder.videoTracks(Collections.singletonList(localVideoTrack));
+                connectOptionsBuilder.videoTracks(Collections.singletonList(getLocalVideoTrack()));
             }
             room = Video.connect(context, connectOptionsBuilder.build(), roomListener());
         } catch (Exception e) {

@@ -120,7 +120,7 @@ public class VideoActivity extends AudioCallActivityV2 {
             if (videoCall) {
                 if (checkPermissionForCameraAndMicrophone()) {
                     if (localVideoTrack == null) {
-                        localVideoTrack = roomApplozicManager.createAndReturnLocalVideoTrack();
+                        localVideoTrack = roomApplozicManager.getLocalVideoTrack();
                     }
                     localVideoTrack.addRenderer(localVideoView);
                     roomApplozicManager.publishLocalVideoTrack();

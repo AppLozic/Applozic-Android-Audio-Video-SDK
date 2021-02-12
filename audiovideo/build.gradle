@@ -18,7 +18,7 @@ android {
         minSdkVersion 16
         targetSdkVersion 28
         versionCode 7
-        versionName "3.0.0"
+        versionName "3.0.1"
     }
     buildTypes {
         release {
@@ -68,7 +68,7 @@ ext {
     artifact = 'audiovideo'
 
     libraryDescription = 'Applozic Communication Chat/Messaging library with audio/video support'
-    libraryVersion = '3.0.0'
+    libraryVersion = '3.0.1'
 
     developerId = 'devashish'
     developerName = 'Applozic'

@@ -1,6 +1,10 @@
 
 ## Changelog
 
+**Version 3.0.1** - 12th February, 2021
+
+- Rebuild and release
+
 **Version 3.0.0** - 2nd February, 2021 (The Re-birth)
 
 - Basic 1-1 audio call to contact

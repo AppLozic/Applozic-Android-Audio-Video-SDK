@@ -38,15 +38,15 @@ allprojects {
 
 /*ext {
     compileSdkVersion = 29
-    targetSdkVersion = 29
-    glideVersion = "4.11.0"
-    firebaseVersion = "21.0.1"
-    googleMapsVersion = "17.0.0"
-    locationServicesVersion = "17.1.0"
-    constraintLayoutVersion = "2.0.4"
-    circleImageViewVersion = "3.1.0"
-    imageCropperVersion = "2.8.0"
-    googleGsonVersion = "2.8.6"
+     targetSdkVersion = 29
+     glideVersion = "4.11.0"
+     firebaseVersion = "21.0.1"
+     googleMapsVersion = "17.0.0"
+     locationServicesVersion = "17.1.0"
+     constraintLayoutVersion = "2.0.4"
+     circleImageViewVersion = "3.1.0"
+     imageCropperVersion = "2.8.0"
+     googleGsonVersion = "2.8.6"
 }*/
 
 task clean(type: Delete) {

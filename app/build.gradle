@@ -62,10 +62,8 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    //Note: use this for customization
     api project(':audiovideo')
-    //api 'com.applozic.communication.uiwidget:mobicomkitui:5.97'
-    implementation 'com.google.android.material:material:1.2.1'
+    implementation 'com.google.android.material:material:1.3.0'
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation "androidx.annotation:annotation:1.1.0"
     implementation 'androidx.appcompat:appcompat:1.2.0'
@@ -76,11 +74,11 @@ dependencies {
         exclude group: 'org.hamcrest', module: 'hamcrest-core'
     }
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
-    androidTestImplementation 'com.google.dagger:dagger:2.27'
+    androidTestImplementation 'com.google.da    gger:dagger:2.27'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.13'
     androidTestImplementation('org.droidparts.dexmaker:dexmaker:1.5') {
         exclude module: 'objenesis'
     }
-    androidTestImplementation 'junit:junit:4.13.1'
+    androidTestImplementation 'junit:junit:4.13.2'
 }
 apply plugin: 'com.google.gms.google-services'

@@ -26,7 +26,6 @@ public class ApplozicSampleApplication extends MultiDexApplication {
                 .penaltyLog()
                 .penaltyDeath()
                 .build());*/
-
     }
 
     @Override

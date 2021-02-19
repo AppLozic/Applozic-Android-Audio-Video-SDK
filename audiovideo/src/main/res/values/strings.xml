@@ -12,4 +12,8 @@
     <string name="ongoing_call_notification_text">Ongoing Call</string>
     <string name="ongoing_call_notification_video_call_text">Video Call</string>
     <string name="ongoing_call_notification_audio_call_text">Audio Call</string>
+    <string name="close_session">Close session</string>
+    <string name="question_for_closing_session">Do you want to close your current session?</string>
+    <string name="call_close_session_cancel">Cancel</string>
+    <string name="call_close_session_close">Close</string>
 </resources>

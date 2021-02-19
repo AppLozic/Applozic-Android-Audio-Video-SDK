@@ -24,4 +24,12 @@
         <item name="android:background">@color/buttonbgcolor</item>
     </style>
 
+    <style name="AppCompatAlertDialogStyle" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorAccent">#FFCC00</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColorPrimary">#000000</item>
+        <item name="android:background">#FFF</item>
+    </style>
+
 </resources>

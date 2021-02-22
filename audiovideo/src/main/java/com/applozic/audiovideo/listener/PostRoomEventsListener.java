@@ -8,7 +8,7 @@ public interface PostRoomEventsListener {
     void afterRoomDisconnected(Room room);
     void afterRoomConnectionFailure();
     void afterReconnecting();
-    void afterConnectionReestablished();
+    void afterConnectionReestablished(Room room);
     void afterParticipantConnected(RemoteParticipant remoteParticipant);
     void afterParticipantDisconnected(RemoteParticipant remoteParticipant);
 }

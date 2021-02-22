@@ -51,6 +51,7 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:id="@+id/buttonsContainer"
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
@@ -106,4 +107,26 @@
         android:textColor="@color/whitesmoke"
         android:textSize="20sp" />
 
+    <TextView
+        android:id="@+id/applozic_audio_status"
+        android:layout_width="wrap_content"
+        android:textDirection="locale"
+        android:textAlignment="gravity"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/applozic_audio_timer"
+        android:layout_centerHorizontal="true"
+        android:fontFamily="sans-serif-condensed"
+        android:paddingTop="@dimen/fab_margin"
+        android:textColor="@color/whitesmoke"
+        android:textSize="20sp" />
+
+    <ImageView
+        android:id="@+id/audio_mute_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/buttonsContainer"
+        android:layout_marginBottom="30dp"
+        android:layout_centerHorizontal="true"
+        android:src="@drawable/ic_mic_off_red_24px"
+        android:visibility="gone" />
 </RelativeLayout>

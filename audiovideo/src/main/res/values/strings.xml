@@ -16,4 +16,9 @@
     <string name="question_for_closing_session">Do you want to close your current session?</string>
     <string name="call_close_session_cancel">Cancel</string>
     <string name="call_close_session_close">Close</string>
+    <string name="status_text_calling">Calling…</string>
+    <string name="status_text_reconnecting">Reconnecting…</string>
+    <string name="status_text_paused">Video paused.</string>
+    <string name="call_end">Call end.</string>
+    <string name="call_not_valid">Call not valid.</string>
 </resources>

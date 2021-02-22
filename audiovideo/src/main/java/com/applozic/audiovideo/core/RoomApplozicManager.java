@@ -543,10 +543,18 @@ public class RoomApplozicManager {
             }
 
             @Override
-            public void onReconnecting(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull TwilioException twilioException) { }
+            public void onReconnecting(@androidx.annotation.NonNull Room room, @androidx.annotation.NonNull TwilioException twilioException) {
+                if(postRoomEventsListener != null) {
+                    postRoomEventsListener.afterReconnecting();
+                }
+            }
 
             @Override
-            public void onReconnected(@androidx.annotation.NonNull Room room) { }
+            public void onReconnected(@androidx.annotation.NonNull Room room) {
+                if(postRoomEventsListener != null) {
+                    postRoomEventsListener.afterConnectionReestablished(room);
+                }
+            }
 
             @Override
             public void onDisconnected(@NonNull Room room, TwilioException e) {
@@ -690,22 +698,30 @@ public class RoomApplozicManager {
 
             @Override
             public void onAudioTrackEnabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
-
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterAudioTrackEnabled(remoteParticipant);
+                }
             }
 
             @Override
             public void onAudioTrackDisabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteAudioTrackPublication remoteAudioTrackPublication) {
-
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterAudioTrackDisabled(remoteParticipant, room);
+                }
             }
 
             @Override
             public void onVideoTrackEnabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication) {
-
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterVideoTrackEnabled(remoteParticipant);
+                }
             }
 
             @Override
             public void onVideoTrackDisabled(@androidx.annotation.NonNull RemoteParticipant remoteParticipant, @androidx.annotation.NonNull RemoteVideoTrackPublication remoteVideoTrackPublication) {
-
+                if(postRoomParticipantEventsListener != null) {
+                    postRoomParticipantEventsListener.afterVideoTrackDisabled(remoteParticipant, room);
+                }
             }
         };
     }

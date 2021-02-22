@@ -20,6 +20,7 @@ import com.applozic.audiovideo.authentication.MakeAsyncRequest;
 import com.applozic.audiovideo.authentication.Token;
 import com.applozic.audiovideo.authentication.TokenGeneratorCallback;
 import com.applozic.audiovideo.core.CallConstants;
+import com.applozic.audiovideo.core.CallServiceDelegate;
 import com.applozic.audiovideo.core.RoomApplozicManager;
 import com.applozic.audiovideo.listener.AudioVideoUICallback;
 import com.applozic.audiovideo.listener.PostRoomEventsListener;
@@ -52,10 +53,6 @@ public class CallService extends Service implements TokenGeneratorCallback {
             callUIState = new CallUIState();
         }
         return callUIState;
-    }
-
-    public void setCallUIState(boolean loudspeakerOn, boolean localAudioEnabled, boolean localVideoEnabled) {
-
     }
 
     private final IBinder binder = new AudioVideoCallBinder();
@@ -164,14 +161,15 @@ public class CallService extends Service implements TokenGeneratorCallback {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        /*
-         * Always disconnect from the room on destroy
-         * ensure any memory allocated to the Room resource is freed.
-         */
-        roomApplozicManager.disconnectRoom();
-        roomApplozicManager.releaseAudioVideoTracks();
-        roomApplozicManager.unregisterApplozicBroadcastReceiver();
-
+        if(roomApplozicManager != null) {
+            /*
+             * Always disconnect from the room on destroy
+             * ensure any memory allocated to the Room resource is freed.
+             */
+            roomApplozicManager.disconnectRoom();
+            roomApplozicManager.releaseAudioVideoTracks();
+            roomApplozicManager.unregisterApplozicBroadcastReceiver();
+        }
         setCallServiceOngoing(false);
     }
 
@@ -222,6 +220,10 @@ public class CallService extends Service implements TokenGeneratorCallback {
     public class AudioVideoCallBinder extends Binder {
         public CallService getCallService() {
             return CallService.this;
+        }
+
+        public CallServiceDelegate getCallServiceDelegate() {
+            return new CallServiceDelegate(CallService.this);
         }
     }
 

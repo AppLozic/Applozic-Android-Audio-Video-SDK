@@ -91,6 +91,11 @@ public class AudioCallActivityV2 extends AppCompatActivity {
     protected FloatingActionButton muteActionFab;
     protected FloatingActionButton speakerActionFab;
 
+    protected TextView videoStatusTextView;
+    protected TextView audioStatusTextView;
+    protected ImageView audioMuteStatus;
+    protected ImageView videoMuteStatus;
+
     protected AudioManager audioManager; //speaker control
     protected MediaPlayer mediaPlayer; //for ringtone
     protected ProgressDialog loading;
@@ -136,10 +141,14 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         }
 
         @Override
-        public void afterReconnecting() { }
+        public void afterReconnecting() {
+            AudioCallActivityV2.this.afterReconnecting();
+        }
 
         @Override
-        public void afterConnectionReestablished() { }
+        public void afterConnectionReestablished(Room room) {
+            AudioCallActivityV2.this.afterConnectionReestablished(room);
+        }
 
         @Override
         public void afterParticipantConnected(RemoteParticipant remoteParticipant) {
@@ -171,6 +180,26 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         @Override
         public void afterParticipantDisconnectedFromCall(RemoteVideoTrackPublication remoteVideoTrackPublication) {
             removeParticipantVideo(remoteVideoTrackPublication.getRemoteVideoTrack());
+        }
+
+        @Override
+        public void afterVideoTrackEnabled(RemoteParticipant remoteParticipant) {
+            hideVideoPausedStatusText();
+        }
+
+        @Override
+        public void afterVideoTrackDisabled(RemoteParticipant remoteParticipant, Room room) {
+            showVideoPausedStatusTextIfValid(remoteParticipant, room);
+        }
+
+        @Override
+        public void afterAudioTrackEnabled(RemoteParticipant remoteParticipant) {
+            hideMuteStatus();
+        }
+
+        @Override
+        public void afterAudioTrackDisabled(RemoteParticipant remoteParticipant, Room room) {
+            showMuteStatus(videoCall);
         }
     };
 
@@ -210,6 +239,60 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         }
     };
 
+    boolean isVideoCallStatusTextVideoPaused() {
+        return getString(R.string.status_text_paused).contentEquals(videoStatusTextView.getText());
+    }
+
+    void hideVideoCallStatusText() {
+        if(videoStatusTextView != null) {
+            videoStatusTextView.setVisibility(View.INVISIBLE);
+        }
+    }
+
+    void setVideoCallStatusText(String callStatusText) {
+        if(videoStatusTextView != null) {
+            videoStatusTextView.setVisibility(View.VISIBLE);
+            videoStatusTextView.setText(callStatusText);
+        }
+    }
+
+    void hideAudioCallStatusText() {
+        if(audioStatusTextView != null) {
+            audioStatusTextView.setVisibility(View.GONE);
+        }
+    }
+
+    void setAudioCallStatusText(String callStatusText) {
+        if(audioStatusTextView != null) {
+            audioStatusTextView.setVisibility(View.VISIBLE);
+            audioStatusTextView.setText(callStatusText);
+        }
+    }
+
+    void showMuteStatus(boolean videoCall) {
+        if (videoCall && videoMuteStatus == null) {
+            return;
+        }
+        if(!videoCall && audioMuteStatus == null) {
+            return;
+        }
+
+        if (videoCall) {
+            videoMuteStatus.setVisibility(View.VISIBLE);
+        } else {
+            audioMuteStatus.setVisibility(View.VISIBLE);
+        }
+    }
+
+    void hideMuteStatus() {
+        if(audioMuteStatus != null) {
+            audioMuteStatus.setVisibility(View.INVISIBLE);
+        }
+        if(videoMuteStatus != null) {
+            videoMuteStatus.setVisibility(View.INVISIBLE);
+        }
+    }
+
     public void finishCallActivityProperly() {
         if(isTaskRoot()) {
             Intent intent = new Intent(this, ConversationActivity.class);
@@ -233,7 +316,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
 
     public void finishActivityAndOpenConversationActivityIfNotValid() {
         if (!isCallActivityValid()) {
-            Toast.makeText(this, "Call not valid.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getResources().getString(R.string.call_not_valid), Toast.LENGTH_LONG).show();
             finishCallActivityProperly();
         }
     }
@@ -282,7 +365,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                     if(callService.getRoomApplozicManager() != null && callService.getRoomApplozicManager().getOneToOneCall() != null) {
                         Log.d(TAG, "Call Service attached to Audio Call Activity: " + callService.getRoomApplozicManager().getOneToOneCall().getCallId());
                     } else {
-                        Toast.makeText(AudioCallActivityV2.this, "Call not valid.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(AudioCallActivityV2.this, getResources().getString(R.string.call_not_valid), Toast.LENGTH_SHORT).show();
                         finishCallActivityProperly();
                         callService.stopSelf();
                         callService.stopForeground(true);
@@ -389,6 +472,14 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         connectActionFab = (FloatingActionButton) findViewById(R.id.call_action_fab);
         muteActionFab = (FloatingActionButton) findViewById(R.id.mute_action_fab);
         speakerActionFab = (FloatingActionButton) findViewById(R.id.speaker_action_fab);
+
+        videoStatusTextView = (TextView) findViewById(R.id.video_status_textview);
+        audioStatusTextView = (TextView) findViewById(R.id.applozic_audio_status);
+        audioMuteStatus = (ImageView) findViewById(R.id.audio_mute_status);
+        videoMuteStatus = (ImageView) findViewById(R.id.video_mute_status);
+        if(!received) {
+            setAudioCallStatusText(getString(R.string.status_text_calling));
+        }
 
         /*
          * Check camera and microphone permissions. Needed in Android M.
@@ -543,6 +634,22 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                 R.drawable.ic_call_end_white_24px));
         connectActionFab.show();
         connectActionFab.setOnClickListener(disconnectClickListener());
+    }
+
+    protected void showVideoPausedStatusTextIfValid(RemoteParticipant remoteParticipant, Room room) {
+        if(callService == null) {
+            return;
+        }
+
+        if (videoCall && remoteParticipant.getIdentity().equals(callService.getRoomApplozicManager().getContactCalled().getUserId()) && room.getState() == CONNECTED) {
+            setVideoCallStatusText(getString(R.string.status_text_paused));
+        }
+    }
+
+    protected void hideVideoPausedStatusText() {
+        if(isVideoCallStatusTextVideoPaused()) {
+            hideVideoCallStatusText();
+        }
     }
 
     /*  Set primary view as renderer for participant video track
@@ -804,6 +911,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
     }
 
     public void afterRoomDisconnected(Room room) {
+        Toast.makeText(AudioCallActivityV2.this, AudioCallActivityV2.this.getString(R.string.call_end), Toast.LENGTH_SHORT).show();
         if (mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
         }
@@ -811,19 +919,32 @@ public class AudioCallActivityV2 extends AppCompatActivity {
     }
 
     public void afterRoomConnectionFailure() {
+        hideVideoCallStatusText();
+        hideAudioCallStatusText();
         hideProgress();
         finish();
     }
 
     public void afterReconnecting() {
-
+        if(videoCall) {
+            setVideoCallStatusText(getString(R.string.status_text_reconnecting));
+        } else {
+            setAudioCallStatusText(getString(R.string.status_text_reconnecting));
+        }
     }
 
-    public void afterConnectionReestablished() {
-
+    public void afterConnectionReestablished(Room room) {
+        RemoteParticipant remoteParticipant = room.getRemoteParticipants().get(0);
+        hideVideoCallStatusText();
+        hideAudioCallStatusText();
+        //if remote video is paused (logic is for 1-to-1 video call only)
+        if(videoCall && remoteParticipant != null  && !remoteParticipant.getRemoteVideoTracks().get(0).isTrackEnabled()) {
+            setVideoCallStatusText(getString(R.string.status_text_paused));
+        }
     }
 
     public void afterParticipantConnected(RemoteParticipant remoteParticipant) {
+
         /*
          * This app only displays video for one participant
          */
@@ -833,6 +954,8 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                     Snackbar.LENGTH_LONG).show();
             return;
         }
+        hideVideoCallStatusText();
+        hideAudioCallStatusText();
         hideProgress();
     }
 

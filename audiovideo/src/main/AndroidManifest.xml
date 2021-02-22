@@ -19,6 +19,7 @@
             android:screenOrientation="portrait"
             android:label="@string/app_name"
             android:launchMode="singleTop"
+            android:excludeFromRecents="true"
             android:theme="@style/Applozic_FullScreen_Theme"/>
 
         <activity android:name="com.applozic.audiovideo.activity.VideoActivity"

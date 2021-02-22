@@ -73,7 +73,9 @@ public class CallActivity extends Activity {
         vibrator.vibrate(pattern, 0);
         Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
         r = RingtoneManager.getRingtone(getApplicationContext(), notification);
-        r.play();
+        if(!r.isPlaying()) { //to stop multiple plays
+            r.play();
+        }
         setRinging(true);
         baseContactService = new AppContactService(this);
         messageService = new MobiComMessageService(this, MessageIntentService.class);
@@ -219,6 +221,9 @@ public class CallActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         setRinging(false);
+        if(r.isPlaying()) {
+            r.stop();
+        }
         LocalBroadcastManager.getInstance(this).unregisterReceiver(applozicBroadCastReceiver);
     }
 

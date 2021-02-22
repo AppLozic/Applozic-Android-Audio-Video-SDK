@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -57,6 +58,11 @@ public class VideoActivity extends AudioCallActivityV2 {
         speakerActionFab = (FloatingActionButton) findViewById(R.id.speaker_action_fab);
         videoOptionLayout = (LinearLayout) findViewById(R.id.video_call_option);
         FrameLayout frameLayout = (FrameLayout) findViewById(R.id.video_container);
+        videoStatusTextView = (TextView) findViewById(R.id.video_status_textview);
+        videoMuteStatus = (ImageView) findViewById(R.id.video_mute_status);
+        if(!received) {
+            setVideoCallStatusText(getString(R.string.status_text_calling));
+        }
 
         frameLayout.setOnTouchListener(new View.OnTouchListener() {
             @Override

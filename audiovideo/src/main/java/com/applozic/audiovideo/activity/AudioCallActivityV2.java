@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.os.IBinder;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -40,6 +41,7 @@ import com.applozic.audiovideo.listener.PostRoomEventsListener;
 import com.applozic.audiovideo.listener.PostRoomParticipantEventsListener;
 import com.applozic.audiovideo.service.CallService;
 import com.applozic.mobicomkit.contact.AppContactService;
+import com.applozic.mobicomkit.uiwidgets.conversation.activity.ConversationActivity;
 import com.applozic.mobicommons.commons.core.utils.Utils;
 import com.applozic.mobicommons.commons.image.ImageLoader;
 import com.applozic.mobicommons.people.contact.Contact;
@@ -208,12 +210,31 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         }
     };
 
+    public void finishCallActivityProperly() {
+        if(isTaskRoot()) {
+            Intent intent = new Intent(this, ConversationActivity.class);
+            startActivity(intent);
+        }
+        AudioCallActivityV2.this.finish();
+    }
+
     public void finishActivityIfInternetNotAvailable() {
         if (!Utils.isInternetAvailable(this)) {
             Toast toast = Toast.makeText(this, getString(R.string.internet_connection_not_available), Toast.LENGTH_SHORT);
             toast.setGravity(Gravity.CENTER, 0, 0);
             toast.show();
-            finish();
+            finishCallActivityProperly();
+        }
+    }
+
+    public boolean isCallActivityValid() {
+        return !TextUtils.isEmpty(userIdContactCalled) || (callServiceIsRunningInForeground(this)); //contactCalled should be valid if call isn't already ongoing
+    }
+
+    public void finishActivityAndOpenConversationActivityIfNotValid() {
+        if (!isCallActivityValid()) {
+            Toast.makeText(this, "Call not valid.", Toast.LENGTH_LONG).show();
+            finishCallActivityProperly();
         }
     }
 
@@ -258,11 +279,13 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                 CallService.AudioVideoCallBinder audioVideoCallBinder = (CallService.AudioVideoCallBinder) service;
                 callService = audioVideoCallBinder.getCallService();
                 if(callService != null) {
-                    if(callService.getRoomApplozicManager() != null) {
+                    if(callService.getRoomApplozicManager() != null && callService.getRoomApplozicManager().getOneToOneCall() != null) {
                         Log.d(TAG, "Call Service attached to Audio Call Activity: " + callService.getRoomApplozicManager().getOneToOneCall().getCallId());
                     } else {
                         Toast.makeText(AudioCallActivityV2.this, "Call not valid.", Toast.LENGTH_SHORT).show();
-                        AudioCallActivityV2.this.finish();
+                        finishCallActivityProperly();
+                        callService.stopSelf();
+                        callService.stopForeground(true);
                     }
 
                     callService.setAudioVideoUICallback(audioVideoUICallback);
@@ -271,11 +294,13 @@ public class AudioCallActivityV2 extends AppCompatActivity {
                     callService.setCallDurationTickCallback(callDurationTickCallback);
 
                     RoomApplozicManager roomApplozicManager = callService.getRoomApplozicManager();
+                    updateCallDataFrom(roomApplozicManager);
                     if(checkPermissionForCameraAndMicrophone() && videoCall) {
                         roomApplozicManager.publishLocalVideoTrack();
                     }
-                    updateCallDataFrom(roomApplozicManager);
                     initializeUI(roomApplozicManager);
+                } else {
+                    finishCallActivityProperly();
                 }
             }
 
@@ -330,6 +355,9 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         initCallDataFrom(getIntent());
 
+        finishActivityIfInternetNotAvailable();
+        finishActivityAndOpenConversationActivityIfNotValid();
+
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
@@ -343,8 +371,6 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         //ringtone for incoming/received call
         mediaPlayer = MediaPlayer.create(this, R.raw.hangouts_video_call);
         mediaPlayer.setLooping(true);
-
-        finishActivityIfInternetNotAvailable();
 
         if (videoCall) {
             Utils.printLog(this, TAG, "This is a video call. Returning.");
@@ -596,7 +622,6 @@ public class AudioCallActivityV2 extends AppCompatActivity {
     private void disconnectAndExit(RoomApplozicManager roomApplozicManager) {
         if (roomApplozicManager.getRoom() != null) {
             roomApplozicManager.disconnectRoom();
-        } else {
             finish();
         }
     }

@@ -71,7 +71,8 @@ import static com.twilio.video.Room.State.CONNECTED;
  * {@link CallService} through three callbacks:
  * 1. {@link AudioCallActivityV2#postRoomParticipantEventsListener}
  * 2. {@link AudioCallActivityV2#postRoomEventsListener}
- * 3. {@link AudioCallActivityV2#audioVideoUICallback}</p>
+ * 3. {@link AudioCallActivityV2#audioVideoUICallback}
+ * 4. {@link AudioCallActivityV2#callDurationTickCallback}</p>
  *
  * Created by Adarsh on 12/15/16.
  * Updated by Shubham Tewari (shubham@applozic.com)
@@ -258,7 +259,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
 
     void hideAudioCallStatusText() {
         if(audioStatusTextView != null) {
-            audioStatusTextView.setVisibility(View.GONE);
+            audioStatusTextView.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -341,7 +342,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         contactCalled = contactService.getContactById(userIdContactCalled);
     }
 
-    protected void updateCallDataFrom(RoomApplozicManager roomApplozicManager) {
+    protected void updateCallDataForActivityFrom(RoomApplozicManager roomApplozicManager) {
         if(roomApplozicManager == null) {
             Log.d(TAG, "RoomApplozicManager object is null.");
             return;
@@ -353,34 +354,57 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         contactCalled = roomApplozicManager.getContactCalled();
     }
 
-    protected void bindCallServiceWithActivity() {
+    protected boolean isCallDataValid(RoomApplozicManager roomApplozicManager) {
+        return roomApplozicManager != null && roomApplozicManager.getOneToOneCall() != null && roomApplozicManager.getContactCalled() != null;
+    }
+
+    protected void closeEntireCall() {
+        Toast.makeText(AudioCallActivityV2.this, getResources().getString(R.string.call_not_valid), Toast.LENGTH_SHORT).show();
+
+        finishCallActivityProperly();
+
+        callService.stopSelf();
+        callService.stopForeground(true);
+    }
+
+    protected void bindCallServiceWithActivity(boolean wasCallServiceAlreadyRunning) {
         Intent intent = new Intent(this, CallService.class);
         bindService(intent, new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
                 Log.d(TAG, "Call Service Connected.");
-                CallService.AudioVideoCallBinder audioVideoCallBinder = (CallService.AudioVideoCallBinder) service;
-                callService = audioVideoCallBinder.getCallService();
+
+                callService = ((CallService.AudioVideoCallBinder) service).getCallService();
+
                 if(callService != null) {
-                    if(callService.getRoomApplozicManager() != null && callService.getRoomApplozicManager().getOneToOneCall() != null) {
+                    RoomApplozicManager roomApplozicManager = callService.getRoomApplozicManager();
+
+                    if(isCallDataValid(roomApplozicManager)) {
                         Log.d(TAG, "Call Service attached to Audio Call Activity: " + callService.getRoomApplozicManager().getOneToOneCall().getCallId());
                     } else {
-                        Toast.makeText(AudioCallActivityV2.this, getResources().getString(R.string.call_not_valid), Toast.LENGTH_SHORT).show();
-                        finishCallActivityProperly();
-                        callService.stopSelf();
-                        callService.stopForeground(true);
+                        closeEntireCall();
                     }
+
+                    if (wasCallServiceAlreadyRunning) { //call ongoing
+                        if (videoCall != roomApplozicManager.isVideoCall()) { //ongoing CallService call type and the call type that was opened don't match
+                            Toast.makeText(AudioCallActivityV2.this, "Error: Ongoing call is a : " + (roomApplozicManager.isVideoCall() ? "video" : "audio") + " call!", Toast.LENGTH_LONG).show();
+                            finishCallActivityProperly();
+                        } else if (!userIdContactCalled.equals(roomApplozicManager.getContactCalled().getUserId())) { //ongoing CallService contact and the contact being called don't match
+                            Toast.makeText(AudioCallActivityV2.this, "There is an ongoing call. Opening that.", Toast.LENGTH_LONG).show();
+                        }
+                    }
+
+                    updateCallDataForActivityFrom(roomApplozicManager);
 
                     callService.setAudioVideoUICallback(audioVideoUICallback);
                     callService.setPostRoomParticipantEventsListener(postRoomParticipantEventsListener);
                     callService.setPostRoomEventsListener(postRoomEventsListener);
                     callService.setCallDurationTickCallback(callDurationTickCallback);
 
-                    RoomApplozicManager roomApplozicManager = callService.getRoomApplozicManager();
-                    updateCallDataFrom(roomApplozicManager);
                     if(checkPermissionForCameraAndMicrophone() && videoCall) {
                         roomApplozicManager.publishLocalVideoTrack();
                     }
+
                     initializeUI(roomApplozicManager);
                 } else {
                     finishCallActivityProperly();
@@ -430,7 +454,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             }
         }
 
-        bindCallServiceWithActivity();
+        bindCallServiceWithActivity(callServiceAlreadyRunning);
     }
 
     @Override
@@ -477,7 +501,8 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         audioStatusTextView = (TextView) findViewById(R.id.applozic_audio_status);
         audioMuteStatus = (ImageView) findViewById(R.id.audio_mute_status);
         videoMuteStatus = (ImageView) findViewById(R.id.video_mute_status);
-        if(!received) {
+
+        if(!received && !callServiceIsRunning(this)) {
             setAudioCallStatusText(getString(R.string.status_text_calling));
         }
 
@@ -487,7 +512,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         if (!checkPermissionForCameraAndMicrophone()) {
             requestPermissionForCameraAndMicrophone();
         } else {
-            startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this));
+            startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this) || callServiceIsRunning(this));
         }
     }
 
@@ -525,7 +550,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             }
 
             if (cameraAndMicPermissionGranted) {
-                startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this));
+                startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this) || callServiceIsRunning(this));
             } else {
                 Toast.makeText(this,
                         R.string.permissions_needed,
@@ -987,6 +1012,19 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             }
         }
         return false;
+    }
+
+    public boolean callServiceIsRunning(Context context) {
+        ActivityManager manager = (ActivityManager) context.getSystemService(
+                Context.ACTIVITY_SERVICE);
+
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(
+                Integer.MAX_VALUE)) {
+            if (CallService.class.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return CallService.isRunning(); //fallback method for double checking
     }
 }
 

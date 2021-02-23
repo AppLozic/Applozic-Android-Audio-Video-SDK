@@ -12,6 +12,7 @@
             android:screenOrientation="portrait"
             android:exported="true"
             android:launchMode="singleTop"
+            android:excludeFromRecents="true"
             android:theme="@style/Applozic_FullScreen_Theme"/>
 
         <activity android:name="com.applozic.audiovideo.activity.CallActivity"
@@ -24,6 +25,7 @@
 
         <activity android:name="com.applozic.audiovideo.activity.VideoActivity"
             android:launchMode="singleTop"
+            android:excludeFromRecents="true"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
             android:screenOrientation="portrait"
             android:exported="true"

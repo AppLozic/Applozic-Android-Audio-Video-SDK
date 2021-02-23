@@ -592,11 +592,20 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             Room room = roomApplozicManager.getRoom();
             if (room != null) {
                 for (RemoteParticipant remoteParticipant : room.getRemoteParticipants()) {
-                    RemoteVideoTrack remoteVideoTrack = remoteParticipant.getRemoteVideoTracks().get(0).getRemoteVideoTrack();
-                    if (remoteVideoTrack == null) {
-                        return;
+                    if(!remoteParticipant.getRemoteVideoTracks().isEmpty()) {
+                        RemoteVideoTrack remoteVideoTrack = remoteParticipant.getRemoteVideoTracks().get(0).getRemoteVideoTrack();
+                        if (remoteVideoTrack == null) {
+                            return;
+                        }
+                        addRemoteParticipantVideo(remoteVideoTrack);
+
+                        //remote video paused status
+                        if(remoteVideoTrack.isEnabled()) {
+                            hideVideoPausedStatusText();
+                        } else {
+                            showVideoPausedStatusTextIfValid(remoteParticipant, room);
+                        }
                     }
-                    addRemoteParticipantVideo(remoteVideoTrack);
                     break; //only one participant UI allowed (1-to-1 call)
                 }
             }
@@ -648,6 +657,23 @@ public class AudioCallActivityV2 extends AppCompatActivity {
             if(videoCall) {
                 toggleCameraPauseUI(callService.getCallUIState().isLocalVideoEnabled());
             }
+        }
+
+        if (roomApplozicManager.getRoom() == null) {
+            return;
+        }
+
+        //for remote audio mute status
+        for (RemoteParticipant remoteParticipant : roomApplozicManager.getRoom().getRemoteParticipants()) {
+            if (!remoteParticipant.getRemoteAudioTracks().isEmpty()) {
+                boolean remoteAudioMuted = !remoteParticipant.getRemoteAudioTracks().get(0).isTrackEnabled();
+                if (remoteAudioMuted) {
+                    showMuteStatus(videoCall);
+                } else {
+                    hideMuteStatus();
+                }
+            }
+            break; //only one participant supported currently
         }
     }
 
@@ -963,7 +989,7 @@ public class AudioCallActivityV2 extends AppCompatActivity {
         hideVideoCallStatusText();
         hideAudioCallStatusText();
         //if remote video is paused (logic is for 1-to-1 video call only)
-        if(videoCall && remoteParticipant != null  && !remoteParticipant.getRemoteVideoTracks().get(0).isTrackEnabled()) {
+        if(videoCall && remoteParticipant != null  && !remoteParticipant.getRemoteVideoTracks().isEmpty() && !remoteParticipant.getRemoteVideoTracks().get(0).isTrackEnabled()) {
             setVideoCallStatusText(getString(R.string.status_text_paused));
         }
     }

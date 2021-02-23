@@ -76,11 +76,8 @@ public class RoomApplozicManager {
 
     protected Room room;
     protected LocalParticipant localParticipant;
-    protected RemoteParticipant remoteParticipant;
     protected LocalAudioTrack localAudioTrack;
     protected LocalVideoTrack localVideoTrack;
-    protected VideoTrack remoteVideoTrack;
-    protected AudioTrack remoteAudioTrack;
 
     protected AudioManager audioManager;
     protected CameraCapturer cameraCapturer;
@@ -179,18 +176,6 @@ public class RoomApplozicManager {
 
     public LocalParticipant getLocalParticipant() {
         return localParticipant;
-    }
-
-    public AudioTrack getRemoteAudioTrack() {
-        return remoteAudioTrack;
-    }
-
-    public VideoTrack getRemoteVideoTrack() {
-        return remoteVideoTrack;
-    }
-
-    public RemoteParticipant getRemoteParticipant() {
-        return remoteParticipant;
     }
 
     public CallService.StopServiceCallback getStopServiceCallback() {

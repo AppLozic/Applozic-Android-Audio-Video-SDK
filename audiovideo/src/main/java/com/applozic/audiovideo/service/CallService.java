@@ -44,9 +44,24 @@ import applozic.com.audiovideo.R;
 public class CallService extends Service implements TokenGeneratorCallback {
     private static final String TAG = "CallService";
 
+    private static CallService instance; //for checking if call service is running
+
     private RoomApplozicManager roomApplozicManager;
     private AudioVideoUICallback audioVideoUICallback;
     private CallUIState callUIState;
+
+    private boolean isInstanceValid() {
+        return true; //if this method can be accessed then the service instance must be valid
+    }
+
+    //will return false if method can't be accessed of if instance is null
+    public static boolean isRunning() {
+        try {
+            return instance != null || instance.isInstanceValid();
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     public CallUIState getCallUIState() {
         if (callUIState == null) {
@@ -133,6 +148,7 @@ public class CallService extends Service implements TokenGeneratorCallback {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
     }
 
 
@@ -170,6 +186,7 @@ public class CallService extends Service implements TokenGeneratorCallback {
             roomApplozicManager.releaseAudioVideoTracks();
             roomApplozicManager.unregisterApplozicBroadcastReceiver();
         }
+        instance = null;
         setCallServiceOngoing(false);
     }
 

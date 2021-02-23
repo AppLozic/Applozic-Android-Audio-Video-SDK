@@ -60,7 +60,8 @@ public class VideoActivity extends AudioCallActivityV2 {
         FrameLayout frameLayout = (FrameLayout) findViewById(R.id.video_container);
         videoStatusTextView = (TextView) findViewById(R.id.video_status_textview);
         videoMuteStatus = (ImageView) findViewById(R.id.video_mute_status);
-        if(!received) {
+
+        if(!received && !callServiceIsRunning(this)) {
             setVideoCallStatusText(getString(R.string.status_text_calling));
         }
 
@@ -78,7 +79,7 @@ public class VideoActivity extends AudioCallActivityV2 {
         if (!checkPermissionForCameraAndMicrophone()) {
             requestPermissionForCameraAndMicrophone();
         } else {
-            startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this));
+            startAndOrBindCallService(activityStartedFromNotification || callServiceIsRunningInForeground(this) || callServiceIsRunning(this));
         }
 
     }

@@ -30,7 +30,7 @@ Without push notifications set-up, calls won't work. Please make sure they are s
 To add our Audio-Video Call SDK add the following dependency in your app-level build.gradle.
 
 ```groovy
-implementation 'com.applozic.communication.uiwidget:audiovideo:3.0.0'
+implementation 'com.applozic.communication.uiwidget:audiovideo:3.1.0'
 ```
 
 The Audio-Video Call SDK includes our messaging SDK. If you add a dependency to this SDK, you do not need to add the dependency for our Applozic Messaging SDK.

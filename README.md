@@ -1,3 +1,20 @@
+## Applozic Audio Video Call SDK
+
+[[Link to our website.]](https://www.applozic.com)
+
+This is the SDK code and sample app for the Applozic Audio Video SDK. 
+You can use this code as a reference to our released SDK. The app can be considered a quick-start app for testing out the waters before you decide to use our messaging and call sdk.
+Feel free to clone and fork the repo and check it out. 
+
+You can file issues in the issue tab. 
+
+---
+
+The AppLozic Audio-Video Call SDK provides high quality IP audio and video calls. With this SDK, your application's users can take part in secure 1-to-1 calls.
+
+The audio and video call feature is currently in its beta version and can be used only when using our pre-built UI.
+Video and audio calls can be enabled for specific users or all user as per your use-case.
+
 ## Overview
 
 Applozic brings real-time engagement with chat, video, and voice to your web,
@@ -17,23 +34,6 @@ Chat, video, and audio-calling have become the new norm in the post-COVID era,
 and we're bridging the gap between businesses and customers by delivering those
 exact solutions.
 
-
-## Applozic Audio Video Call SDK
-
-[[Link to our website.]](https://www.applozic.com)
-
-This is the SDK code and sample app for the Applozic Audio Video SDK. 
-You can use this code as a reference to our released SDK. The app can be considered a quick-start app for testing out the waters before you decide to use our messaging and call sdk.
-Feel free to clone and fork the repo and check it out. 
-
-You can file issues in the issue tab. 
-
----
-
-The AppLozic Audio-Video Call SDK provides high quality IP audio and video calls. With this SDK, your application's users can take part in secure 1-to-1 calls.
-
-The audio and video call feature is currently in its beta version and can be used only when using our pre-built UI.
-Video and audio calls can be enabled for specific users or all user as per your use-case.
 
 ### Setup
 
